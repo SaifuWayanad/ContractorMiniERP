@@ -4,7 +4,7 @@ import {
   TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SelectPicker, PickerOption } from '@/components/ui/SelectPicker';
@@ -211,6 +211,16 @@ export default function ProjectFormScreen() {
   const [notes, setNotes] = useState('');
   const [meetingAt, setMeetingAt] = useState('');
   const [meetingNotes, setMeetingNotes] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isEdit) {
+        setContractorId(''); setClientId(''); setName(''); setProjectNumber('');
+        setTypeOfWork(''); setStatus('planning'); setStartDate(''); setEndDate('');
+        setBudget(''); setNotes(''); setMeetingAt(''); setMeetingNotes('');
+      }
+    }, [isEdit])
+  );
 
   const loadClients = useCallback(async () => {
     try {

@@ -4,7 +4,7 @@ import {
   TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { ScreenHeader, HeaderSaveButton } from '@/components/ui/ScreenHeader';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,6 +39,14 @@ export default function DealerFormScreen() {
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isEdit) {
+        setName(''); setCity(''); setPhone('');
+      }
+    }, [isEdit])
+  );
 
   const loadDealer = useCallback(async () => {
     if (!id) return;

@@ -4,7 +4,7 @@ import {
   TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SelectPicker, PickerOption } from '@/components/ui/SelectPicker';
 import { ScreenHeader, HeaderSaveButton } from '@/components/ui/ScreenHeader';
 import { Colors } from '@/constants/Colors';
@@ -54,6 +54,16 @@ export default function ClientFormScreen() {
   const [state, setState] = useState('');
   const [status, setStatus] = useState('active');
   const [notes, setNotes] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isEdit) {
+        setName(''); setEmail(''); setPhone(''); setAddress('');
+        setCity(''); setState(''); setStatus('active'); setNotes('');
+        setContractorId('');
+      }
+    }, [isEdit])
+  );
 
   const loadClient = useCallback(async () => {
     if (!id) return;

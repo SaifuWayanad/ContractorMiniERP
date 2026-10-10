@@ -4,7 +4,7 @@ import {
   TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SelectPicker, PickerOption } from '@/components/ui/SelectPicker';
@@ -120,6 +120,15 @@ export default function WorkFormScreen() {
   const [status, setStatus] = useState('pending');
   const [priority, setPriority] = useState('medium');
   const [dueDate, setDueDate] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isEdit) {
+        setSelectedProjectId(projectId ?? ''); setTitle(''); setDescription('');
+        setStatus('pending'); setPriority('medium'); setDueDate('');
+      }
+    }, [isEdit, projectId])
+  );
 
   const loadProjects = useCallback(async () => {
     try {
