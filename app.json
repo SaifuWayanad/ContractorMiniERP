@@ -42,6 +42,12 @@
       ],
       "expo-notifications"
     ],
+    "updates": {
+      "url": "https://u.expo.dev/d547f4fd-c429-4bdd-af0f-c4d5c3859e74"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "experiments": {
       "typedRoutes": true
     },

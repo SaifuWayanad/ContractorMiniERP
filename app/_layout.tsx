@@ -3,6 +3,7 @@ import { Stack, router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Updates from 'expo-updates';
 import { StatusBar } from 'expo-status-bar';
 import { AuthContext, AuthUser } from '@/hooks/useAuth';
 import { useRegisterPushToken } from '@/hooks/useRegisterPushToken';
@@ -11,10 +12,26 @@ import { Colors } from '@/constants/Colors';
 
 SplashScreen.preventAutoHideAsync();
 
+async function checkForUpdate() {
+  try {
+    const result = await Updates.checkForUpdateAsync();
+    if (result.isAvailable) {
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    }
+  } catch {
+    // non-critical — silently skip if offline or in dev mode
+  }
+}
+
 export default function RootLayout() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    checkForUpdate();
+  }, []);
 
   useEffect(() => {
     (async () => {
