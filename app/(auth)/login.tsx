@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,13 +37,11 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoB}>B</Text>
-            </View>
-            <Text style={styles.brand}>
-              Build <Text style={styles.brandAccent}>Mate</Text>
-            </Text>
-            <Text style={styles.tagline}>Software for Contractors</Text>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Card */}
@@ -107,19 +105,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.primary },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  header: { alignItems: 'center', marginBottom: 32 },
-  logoCircle: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 12,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
-  },
-  logoB: { fontSize: 36, fontWeight: '900', color: Colors.primary },
-  brand: { fontSize: 30, fontWeight: '800', color: Colors.white, letterSpacing: 0.5 },
-  brandAccent: { color: Colors.accent },
-  tagline: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, letterSpacing: 0.5 },
+  header: { alignItems: 'center', marginBottom: 24 },
+  logo: { width: 220, height: 220 },
   card: {
     backgroundColor: Colors.white, borderRadius: 20, padding: 24,
     shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
