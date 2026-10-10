@@ -29,7 +29,7 @@ type ProjectDetail = {
   next_meeting_notes: string | null;
   client_id: number;
   client: { name: string; phone: string | null; contact_person: string | null; company: string | null; email: string | null };
-  dealer: { id: number; name: string; city: string | null; phone: string | null } | null;
+  dealers: Array<{ id: number; name: string; city: string | null; phone: string | null }>;
   locations: Array<{ id: number; name: string; city: string; state: string; contact_person: string | null; contact_phone: string | null }>;
   works: Array<{ id: number; title: string; status: string; priority: string; due_date: string | null }>;
   meetings: Array<{ id: number; meeting_at: string; purpose: string; created_by: string | null }>;
@@ -43,7 +43,7 @@ type ActivityItem = {
   created_at: string;
 };
 
-type Dealer = { id: number; name: string; city: string | null; phone: string | null };
+type DealerItem = { id: number; name: string; city: string | null; phone: string | null };
 
 const WORK_STATUSES = [
   { value: 'pending', label: 'Pending' },
@@ -200,7 +200,7 @@ export default function ProjectDetailScreen() {
 
   // Contacts
   const [contactModal, setContactModal] = useState(false);
-  const [dealers, setDealers] = useState<Dealer[]>([]);
+  const [dealers, setDealers] = useState<DealerItem[]>([]);
   const [dealerSearch, setDealerSearch] = useState('');
   const [contactSaving, setContactSaving] = useState(false);
 
@@ -296,17 +296,32 @@ export default function ProjectDetailScreen() {
     setContactModal(true);
   }
 
-  async function handleAssignContact(dealerId: number | null) {
+  async function handleAddContact(dealerId: number) {
     setContactSaving(true);
     try {
-      await api.patch(`/mobile/projects/${id}/contact`, { dealer_id: dealerId });
+      await api.post(`/mobile/projects/${id}/contacts`, { dealer_id: dealerId });
       setContactModal(false);
       load();
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to update contact.');
+      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to add contact.');
     } finally {
       setContactSaving(false);
     }
+  }
+
+  async function handleRemoveContact(dealerId: number) {
+    Alert.alert('Remove Contact', 'Remove this contact from the project?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove', style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.delete(`/mobile/projects/${id}/contacts`, { data: { dealer_id: dealerId } });
+            load();
+          } catch { Alert.alert('Error', 'Failed to remove contact.'); }
+        },
+      },
+    ]);
   }
 
   async function handleWorkStatus(workId: number, newStatus: string) {
@@ -415,38 +430,40 @@ export default function ProjectDetailScreen() {
 
           {/* Contacts */}
           <Card
-            title="Contact"
+            title={`Contacts (${project.dealers.length})`}
             titleRight={
               <TouchableOpacity onPress={openContactModal}>
-                <Ionicons name={project.dealer ? 'pencil-outline' : 'add-circle-outline'} size={22} color={Colors.accent} />
+                <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
               </TouchableOpacity>
             }
           >
-            {project.dealer ? (
-              <View style={styles.contactRow}>
-                <View style={styles.contactAvatar}>
-                  <Text style={styles.contactInitials}>
-                    {project.dealer.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.contactName}>{project.dealer.name}</Text>
-                  {project.dealer.city && <Text style={styles.contactMeta}>{project.dealer.city}</Text>}
-                  {project.dealer.phone && (
-                    <TouchableOpacity onPress={() => Linking.openURL(`tel:${project.dealer!.phone}`)}>
-                      <Text style={[styles.contactMeta, { color: Colors.info }]}>{project.dealer.phone}</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <TouchableOpacity onPress={() => handleAssignContact(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="close-circle-outline" size={20} color={Colors.danger} />
-                </TouchableOpacity>
-              </View>
-            ) : (
+            {project.dealers.length === 0 ? (
               <TouchableOpacity style={styles.addContactBtn} onPress={openContactModal}>
                 <Ionicons name="person-add-outline" size={18} color={Colors.accent} />
                 <Text style={styles.addContactText}>Assign a contact</Text>
               </TouchableOpacity>
+            ) : (
+              project.dealers.map((d, i) => (
+                <View key={d.id} style={[styles.contactRow, i > 0 && styles.locBorder]}>
+                  <View style={styles.contactAvatar}>
+                    <Text style={styles.contactInitials}>
+                      {d.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.contactName}>{d.name}</Text>
+                    {d.city ? <Text style={styles.contactMeta}>{d.city}</Text> : null}
+                    {d.phone ? (
+                      <TouchableOpacity onPress={() => Linking.openURL(`tel:${d.phone}`)}>
+                        <Text style={[styles.contactMeta, { color: Colors.info }]}>{d.phone}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <TouchableOpacity onPress={() => handleRemoveContact(d.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="close-circle-outline" size={20} color={Colors.danger} />
+                  </TouchableOpacity>
+                </View>
+              ))
             )}
           </Card>
 
@@ -588,7 +605,7 @@ export default function ProjectDetailScreen() {
         </ScrollView>
 
       {/* Log Meeting Modal */}
-      <Modal visible={logModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={logModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setLogModal(false)}>
         <RNSafeAreaView style={styles.modal}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.modalHeader}>
@@ -620,7 +637,7 @@ export default function ProjectDetailScreen() {
       </Modal>
 
       {/* Set Next Meeting Modal */}
-      <Modal visible={meetingModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={meetingModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setMeetingModal(false)}>
         <RNSafeAreaView style={styles.modal}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.modalHeader}>
@@ -657,7 +674,7 @@ export default function ProjectDetailScreen() {
         </RNSafeAreaView>
       </Modal>
       {/* Assign Contact Modal */}
-      <Modal visible={contactModal} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={contactModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setContactModal(false)}>
         <RNSafeAreaView style={styles.modal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Assign Contact</Text>
@@ -680,25 +697,31 @@ export default function ProjectDetailScreen() {
           <ScrollView keyboardShouldPersistTaps="handled">
             {dealers
               .filter((d) => !dealerSearch || d.name.toLowerCase().includes(dealerSearch.toLowerCase()))
-              .map((d) => (
-                <TouchableOpacity
-                  key={d.id}
-                  style={[styles.dealerPickRow, project?.dealer?.id === d.id && styles.dealerPickRowActive]}
-                  onPress={() => handleAssignContact(d.id)}
-                  disabled={contactSaving}
-                >
-                  <View style={styles.dealerPickAvatar}>
-                    <Text style={styles.dealerPickInitials}>
-                      {d.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.dealerPickName}>{d.name}</Text>
-                    {d.city && <Text style={styles.dealerPickMeta}>{d.city}</Text>}
-                  </View>
-                  {project?.dealer?.id === d.id && <Ionicons name="checkmark-circle" size={20} color={Colors.accent} />}
-                </TouchableOpacity>
-              ))}
+              .map((d) => {
+                const linked = project?.dealers.some((pd) => pd.id === d.id);
+                return (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={[styles.dealerPickRow, linked && styles.dealerPickRowActive]}
+                    onPress={() => !linked && handleAddContact(d.id)}
+                    disabled={contactSaving || linked}
+                  >
+                    <View style={styles.dealerPickAvatar}>
+                      <Text style={styles.dealerPickInitials}>
+                        {d.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.dealerPickName}>{d.name}</Text>
+                      {d.city ? <Text style={styles.dealerPickMeta}>{d.city}</Text> : null}
+                    </View>
+                    {linked
+                      ? <Ionicons name="checkmark-circle" size={20} color={Colors.accent} />
+                      : <Ionicons name="add-circle-outline" size={20} color={Colors.textMuted} />
+                    }
+                  </TouchableOpacity>
+                );
+              })}
             {contactSaving && <ActivityIndicator style={{ paddingVertical: 16 }} color={Colors.accent} />}
           </ScrollView>
         </RNSafeAreaView>

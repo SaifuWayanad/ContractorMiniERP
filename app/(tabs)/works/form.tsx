@@ -83,7 +83,7 @@ function DatePickerField({ label, value, onChange, required }: {
       )}
 
       {Platform.OS === 'ios' && (
-        <Modal visible={show} transparent animationType="slide">
+        <Modal visible={show} transparent animationType="slide" onRequestClose={() => setShow(false)}>
           <View style={s.iosPickerOverlay}>
             <View style={s.iosPickerCard}>
               <View style={s.iosPickerHeader}>

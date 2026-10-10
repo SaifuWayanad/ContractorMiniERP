@@ -78,7 +78,7 @@ function DatePickerField({ label, value, onChange, required }: {
 
       {/* iOS: modal with inline spinner */}
       {Platform.OS === 'ios' && (
-        <Modal visible={show} transparent animationType="slide">
+        <Modal visible={show} transparent animationType="slide" onRequestClose={() => setShow(false)}>
           <View style={s.iosPickerOverlay}>
             <View style={s.iosPickerCard}>
               <View style={s.iosPickerHeader}>
@@ -166,7 +166,7 @@ function DateTimePickerField({ label, value, onChange }: {
       )}
 
       {Platform.OS === 'ios' && (
-        <Modal visible={iosShow} transparent animationType="slide">
+        <Modal visible={iosShow} transparent animationType="slide" onRequestClose={() => setIosShow(false)}>
           <View style={s.iosPickerOverlay}>
             <View style={s.iosPickerCard}>
               <View style={s.iosPickerHeader}>
