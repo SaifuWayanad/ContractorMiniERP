@@ -167,13 +167,21 @@ function Row({ label, value, phone, email }: { label: string; value: string | nu
   );
 }
 
-function fmt(iso: string | null) {
+// Parse server datetime strings robustly: if no timezone info, treat as UTC
+function parseDate(iso: string | null): Date | null {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const s = iso.replace(' ', 'T');
+  if (!s.match(/Z$/) && !s.match(/[+-]\d{2}:\d{2}$/)) return new Date(s + 'Z');
+  return new Date(s);
+}
+function fmt(iso: string | null) {
+  const d = parseDate(iso);
+  if (!d) return null;
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 function fmtDT(iso: string | null) {
-  if (!iso) return null;
-  const d = new Date(iso);
+  const d = parseDate(iso);
+  if (!d) return null;
   return `${d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
 }
 
@@ -280,7 +288,8 @@ export default function ProjectDetailScreen() {
 
   function openMeetingModal() {
     if (project?.next_meeting_at) {
-      setMeetingAt(String(project.next_meeting_at).replace('Z', '').replace(' ', 'T').slice(0, 16));
+      const d = parseDate(project.next_meeting_at);
+      setMeetingAt(d ? toLocalISO(d) : '');
     } else {
       setMeetingAt('');
     }
@@ -555,10 +564,10 @@ export default function ProjectDetailScreen() {
               <View style={styles.upcomingRow}>
                 <View style={[styles.historyDateBox, { borderColor: Colors.accent + '40', backgroundColor: Colors.accent + '10' }]}>
                   <Text style={[styles.historyDay, { color: Colors.accent }]}>
-                    {new Date(String(project.next_meeting_at).replace('Z','').replace(' ','T')).getDate()}
+                    {parseDate(project.next_meeting_at)?.getDate()}
                   </Text>
                   <Text style={[styles.historyMonth, { color: Colors.accent }]}>
-                    {new Date(String(project.next_meeting_at).replace('Z','').replace(' ','T')).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })}
+                    {parseDate(project.next_meeting_at)?.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -566,14 +575,15 @@ export default function ProjectDetailScreen() {
                     <View style={styles.upcomingBadge}><Text style={styles.upcomingBadgeText}>UPCOMING</Text></View>
                   </View>
                   <Text style={styles.historyTime}>
-                    {new Date(String(project.next_meeting_at).replace('Z','').replace(' ','T')).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                    {parseDate(project.next_meeting_at)?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
                   </Text>
                   {project.next_meeting_notes ? <Text style={[styles.historyPurpose, { marginTop: 1 }]} numberOfLines={1}>{project.next_meeting_notes}</Text> : null}
                 </View>
                 <TouchableOpacity
                   style={styles.logBtn}
                   onPress={() => {
-                    setLogDate(String(project.next_meeting_at).replace('Z', '').replace(' ', 'T').slice(0, 16));
+                    const d = parseDate(project.next_meeting_at);
+                    setLogDate(d ? toLocalISO(d) : '');
                     setLogPurpose(project.next_meeting_notes ?? '');
                     setLogModal(true);
                   }}

@@ -104,6 +104,13 @@ function toLocalISO(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function parseApiDate(iso: string | null): Date | null {
+  if (!iso) return null;
+  const s = iso.replace(' ', 'T');
+  if (!s.match(/Z$/) && !s.match(/[+-]\d{2}:\d{2}$/)) return new Date(s + 'Z');
+  return new Date(s);
+}
+
 function DateTimePickerField({ label, value, onChange }: {
   label: string; value: string; onChange: (dt: string) => void;
 }) {
@@ -261,8 +268,8 @@ export default function ProjectFormScreen() {
       setBudget(p.budget ? String(p.budget) : '');
       setNotes(p.notes ?? '');
       if (p.next_meeting_at) {
-        // Strip Z/timezone so JavaScript parses as local time, not UTC
-        setMeetingAt(String(p.next_meeting_at).replace('Z', '').replace(' ', 'T').slice(0, 16));
+        const d = parseApiDate(p.next_meeting_at);
+        setMeetingAt(d ? toLocalISO(d) : '');
       }
       setMeetingNotes(p.next_meeting_notes ?? '');
     } catch { /* ignore */ } finally {
