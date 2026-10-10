@@ -99,6 +99,11 @@ function DatePickerField({ label, value, onChange, required }: {
   );
 }
 
+function toLocalISO(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function DateTimePickerField({ label, value, onChange }: {
   label: string; value: string; onChange: (dt: string) => void;
 }) {
@@ -133,7 +138,7 @@ function DateTimePickerField({ label, value, onChange }: {
     if (!sel) return;
     const combined = new Date(androidDate);
     combined.setHours(sel.getHours(), sel.getMinutes(), 0, 0);
-    onChange(combined.toISOString().slice(0, 16));
+    onChange(toLocalISO(combined));
   }
 
   return (
@@ -169,7 +174,7 @@ function DateTimePickerField({ label, value, onChange }: {
                   <Text style={s.iosPickerCancel}>Cancel</Text>
                 </TouchableOpacity>
                 <Text style={s.iosPickerTitle}>{label}</Text>
-                <TouchableOpacity onPress={() => { onChange(iosPending.toISOString().slice(0, 16)); setIosShow(false); }}>
+                <TouchableOpacity onPress={() => { onChange(toLocalISO(iosPending)); setIosShow(false); }}>
                   <Text style={s.iosPickerDone}>Done</Text>
                 </TouchableOpacity>
               </View>
@@ -256,7 +261,8 @@ export default function ProjectFormScreen() {
       setBudget(p.budget ? String(p.budget) : '');
       setNotes(p.notes ?? '');
       if (p.next_meeting_at) {
-        setMeetingAt(new Date(p.next_meeting_at).toISOString().slice(0, 16));
+        // Strip Z/timezone so JavaScript parses as local time, not UTC
+        setMeetingAt(String(p.next_meeting_at).replace('Z', '').replace(' ', 'T').slice(0, 16));
       }
       setMeetingNotes(p.next_meeting_notes ?? '');
     } catch { /* ignore */ } finally {
@@ -299,7 +305,7 @@ export default function ProjectFormScreen() {
         Alert.alert('Saved', 'Project updated.', [{ text: 'OK', onPress: () => router.back() }]);
       } else {
         const res = await api.post('/mobile/projects', body);
-        Alert.alert('Created', `Project ${res.data.project_number} created.`, [{ text: 'OK', onPress: () => router.navigate('/(tabs)/projects') }]);
+        Alert.alert('Created', `"${res.data.name}" has been created.`, [{ text: 'OK', onPress: () => router.navigate('/(tabs)/projects') }]);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Failed to save.';
