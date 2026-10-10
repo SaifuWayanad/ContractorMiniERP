@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/hooks/useAuth';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -11,6 +12,7 @@ function TabIcon({ name, focused }: { name: IoniconName; focused: boolean }) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const tabBarHeight = 56 + insets.bottom;
 
   return (
@@ -79,6 +81,15 @@ export default function TabsLayout() {
           headerTitle: 'Contacts',
         }}
       />
+      <Tabs.Screen
+        name="admin/index"
+        options={{
+          title: 'Admin',
+          href: user?.is_admin ? undefined : null,
+          tabBarIcon: ({ focused }) => <TabIcon name="shield-checkmark" focused={focused} />,
+          headerShown: false,
+        }}
+      />
       {/* hidden screens */}
       <Tabs.Screen name="profile" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="change-password" options={{ href: null, headerShown: false }} />
@@ -89,6 +100,14 @@ export default function TabsLayout() {
       <Tabs.Screen name="works/form" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="dealers/[id]" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="dealers/form" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="admin/contractors/index" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="admin/contractors/[id]" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="admin/contractors/form" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="admin/users/index" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="admin/users/[id]" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="admin/users/form" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="admin/roles/index" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="admin/roles/[id]" options={{ href: null, headerShown: false }} />
     </Tabs>
   );
 }
