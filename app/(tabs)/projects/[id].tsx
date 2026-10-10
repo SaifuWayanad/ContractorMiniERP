@@ -182,6 +182,7 @@ export default function ProjectDetailScreen() {
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Log Meeting modal
   const [logModal, setLogModal] = useState(false);
@@ -336,6 +337,28 @@ export default function ProjectDetailScreen() {
     finally { setUpdatingWork(null); }
   }
 
+  function handleDeleteProject() {
+    Alert.alert(
+      'Delete Project',
+      `Are you sure you want to delete "${project?.name}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await api.delete(`/mobile/projects/${id}`);
+              router.replace('/(tabs)/projects');
+            } catch (err: any) {
+              Alert.alert('Error', err?.response?.data?.message ?? 'Failed to delete.');
+            } finally { setDeleting(false); }
+          },
+        },
+      ]
+    );
+  }
+
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={Colors.accent} /></View>;
   if (!project) return <View style={styles.centered}><Text style={{ color: Colors.textMuted }}>Project not found.</Text></View>;
 
@@ -349,12 +372,17 @@ export default function ProjectDetailScreen() {
         title={project.project_number}
         subtitle={project.name}
         right={
-          <TouchableOpacity
-            onPress={() => router.push({ pathname: '/(tabs)/projects/form', params: { id: String(project.id) } })}
-            style={styles.editBtn}
-          >
-            <Ionicons name="create-outline" size={20} color={Colors.primary} />
-          </TouchableOpacity>
+          <View style={styles.headerBtns}>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/(tabs)/projects/form', params: { id: String(project.id) } })}
+              style={styles.editBtn}
+            >
+              <Ionicons name="create-outline" size={20} color={Colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleDeleteProject} style={styles.deleteBtn} disabled={deleting}>
+              <Ionicons name="trash-outline" size={20} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
         }
       />
       <ScrollView
@@ -734,9 +762,15 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, paddingBottom: 40 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  headerBtns: { flexDirection: 'row', gap: 8 },
   editBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: Colors.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  deleteBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.danger,
     alignItems: 'center', justifyContent: 'center',
   },
   heroCard: { backgroundColor: Colors.primary, borderRadius: 14, padding: 16, marginBottom: 12 },

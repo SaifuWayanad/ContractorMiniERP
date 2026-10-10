@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  TextInput, RefreshControl, ActivityIndicator,
+  TextInput, RefreshControl, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +39,27 @@ export default function WorksScreen() {
       setRefreshing(false);
     }
   }, []);
+
+  function handleDelete(item: Work) {
+    Alert.alert(
+      'Delete Work',
+      `Delete "${item.title}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/mobile/works/${item.id}`);
+              setWorks((prev) => prev.filter((w) => w.id !== item.id));
+            } catch (err: any) {
+              Alert.alert('Error', err?.response?.data?.message ?? 'Failed to delete.');
+            }
+          },
+        },
+      ]
+    );
+  }
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -91,7 +112,11 @@ export default function WorksScreen() {
         ListEmptyComponent={<EmptyState icon="list-outline" title="No works found" message="Works assigned to your projects appear here." />}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         renderItem={({ item }) => (
-          <View style={styles.row}>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => router.push({ pathname: '/(tabs)/works/form', params: { id: String(item.id) } })}
+            activeOpacity={0.75}
+          >
             <View style={{ flex: 1 }}>
               <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
               <Text style={styles.project} numberOfLines={1}>{item.project}</Text>
@@ -105,7 +130,10 @@ export default function WorksScreen() {
               <Badge status={item.status} />
               <Badge status={item.priority} />
             </View>
-          </View>
+            <TouchableOpacity onPress={(e) => { e.stopPropagation(); handleDelete(item); }} style={styles.deleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+            </TouchableOpacity>
+          </TouchableOpacity>
         )}
       />
     </SafeAreaView>
@@ -144,4 +172,5 @@ const styles = StyleSheet.create({
   project: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   due: { fontSize: 11, color: Colors.textMuted, marginTop: 4 },
   overdue: { color: Colors.danger, fontWeight: '600' },
+  deleteBtn: { padding: 4, marginLeft: 8 },
 });

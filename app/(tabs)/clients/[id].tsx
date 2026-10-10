@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +24,7 @@ export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -34,6 +35,28 @@ export default function ClientDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  function handleDelete() {
+    Alert.alert(
+      'Delete Client',
+      `Are you sure you want to delete "${client?.name}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await api.delete(`/mobile/clients/${id}`);
+              router.replace('/(tabs)/clients');
+            } catch (err: any) {
+              Alert.alert('Error', err?.response?.data?.message ?? 'Failed to delete.');
+            } finally { setDeleting(false); }
+          },
+        },
+      ]
+    );
+  }
+
   if (loading) return <View style={s.centered}><ActivityIndicator size="large" color={Colors.accent} /></View>;
   if (!client) return <View style={s.centered}><Text style={{ color: Colors.textMuted }}>Client not found.</Text></View>;
 
@@ -43,12 +66,17 @@ export default function ClientDetailScreen() {
         title={client.name}
         subtitle={client.company ?? 'Client Details'}
         right={
-          <TouchableOpacity
-            onPress={() => router.push({ pathname: '/(tabs)/clients/form', params: { id: String(client.id) } })}
-            style={s.editBtn}
-          >
-            <Ionicons name="create-outline" size={20} color={Colors.primary} />
-          </TouchableOpacity>
+          <View style={s.headerBtns}>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/(tabs)/clients/form', params: { id: String(client.id) } })}
+              style={s.editBtn}
+            >
+              <Ionicons name="create-outline" size={20} color={Colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleDelete} style={s.deleteBtn} disabled={deleting}>
+              <Ionicons name="trash-outline" size={20} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
         }
       />
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -102,9 +130,15 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, paddingBottom: 40 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  headerBtns: { flexDirection: 'row', gap: 8 },
   editBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: Colors.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  deleteBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.danger,
     alignItems: 'center', justifyContent: 'center',
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
