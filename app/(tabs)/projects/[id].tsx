@@ -62,6 +62,11 @@ function actionColor(action: string) {
   }
 }
 
+function toLocalISO(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt: string) => void }) {
   const [iosOpen, setIosOpen] = useState(false);
   const [iosPending, setIosPending] = useState<Date>(new Date());
@@ -93,7 +98,7 @@ function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt
     if (!sel) return;
     const combined = new Date(androidDate);
     combined.setHours(sel.getHours(), sel.getMinutes(), 0, 0);
-    onChange(combined.toISOString().slice(0, 16));
+    onChange(toLocalISO(combined));
   }
 
   return (
@@ -132,7 +137,7 @@ function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt
             <TouchableOpacity onPress={() => setIosOpen(false)} style={styles.iosInlineBtn}>
               <Text style={styles.iosInlineCancel}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => { onChange(iosPending.toISOString().slice(0, 16)); setIosOpen(false); }} style={styles.iosInlineBtn}>
+            <TouchableOpacity onPress={() => { onChange(toLocalISO(iosPending)); setIosOpen(false); }} style={styles.iosInlineBtn}>
               <Text style={styles.iosInlineDone}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -274,7 +279,7 @@ export default function ProjectDetailScreen() {
 
   function openMeetingModal() {
     if (project?.next_meeting_at) {
-      setMeetingAt(new Date(project.next_meeting_at).toISOString().slice(0, 16));
+      setMeetingAt(String(project.next_meeting_at).replace('Z', '').replace(' ', 'T').slice(0, 16));
     } else {
       setMeetingAt('');
     }
@@ -488,25 +493,70 @@ export default function ProjectDetailScreen() {
 
           {/* Meeting History */}
           <Card
-            title={`Meeting History (${project.meetings.length})`}
+            title={`Meetings (${project.meetings.length + (project.next_meeting_at ? 1 : 0)})`}
             titleRight={
-              <TouchableOpacity onPress={() => { setLogDate(''); setLogPurpose(''); setLogModal(true); }}>
-                <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity onPress={openMeetingModal}>
+                  <Ionicons name="calendar-outline" size={22} color={Colors.accent} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setLogDate(''); setLogPurpose(''); setLogModal(true); }}>
+                  <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
+                </TouchableOpacity>
+              </View>
             }
           >
-            {project.meetings.length === 0 ? (
-              <Text style={styles.empty}>No meetings logged. Tap + to add.</Text>
+            {/* Upcoming meeting row */}
+            {project.next_meeting_at && (
+              <View style={styles.upcomingRow}>
+                <View style={[styles.historyDateBox, { borderColor: Colors.accent + '40', backgroundColor: Colors.accent + '10' }]}>
+                  <Text style={[styles.historyDay, { color: Colors.accent }]}>
+                    {new Date(String(project.next_meeting_at).replace('Z','').replace(' ','T')).getDate()}
+                  </Text>
+                  <Text style={[styles.historyMonth, { color: Colors.accent }]}>
+                    {new Date(String(project.next_meeting_at).replace('Z','').replace(' ','T')).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.upcomingBadgeWrap}>
+                    <View style={styles.upcomingBadge}><Text style={styles.upcomingBadgeText}>UPCOMING</Text></View>
+                  </View>
+                  <Text style={styles.historyTime}>
+                    {new Date(String(project.next_meeting_at).replace('Z','').replace(' ','T')).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  </Text>
+                  {project.next_meeting_notes ? <Text style={[styles.historyPurpose, { marginTop: 1 }]} numberOfLines={1}>{project.next_meeting_notes}</Text> : null}
+                </View>
+                <TouchableOpacity
+                  style={styles.logBtn}
+                  onPress={() => {
+                    setLogDate(String(project.next_meeting_at).replace('Z', '').replace(' ', 'T').slice(0, 16));
+                    setLogPurpose(project.next_meeting_notes ?? '');
+                    setLogModal(true);
+                  }}
+                >
+                  <Text style={styles.logBtnText}>Log</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {project.meetings.length === 0 && !project.next_meeting_at ? (
+              <Text style={styles.empty}>No meetings yet. Tap 📅 to schedule or + to log.</Text>
             ) : (
               project.meetings.map((m, i) => (
-                <View key={m.id} style={[styles.historyRow, i > 0 && styles.locBorder]}>
+                <View key={m.id} style={[styles.historyRow, (i > 0 || project.next_meeting_at) && styles.locBorder]}>
                   <View style={styles.historyDateBox}>
-                    <Text style={styles.historyDay}>{new Date(m.meeting_at).getDate()}</Text>
-                    <Text style={styles.historyMonth}>{new Date(m.meeting_at).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })}</Text>
+                    <Text style={styles.historyDay}>
+                      {new Date(String(m.meeting_at).replace('Z','').replace(' ','T')).getDate()}
+                    </Text>
+                    <Text style={styles.historyMonth}>
+                      {new Date(String(m.meeting_at).replace('Z','').replace(' ','T')).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })}
+                    </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.historyPurpose}>{m.purpose}</Text>
-                    <Text style={styles.historyTime}>{new Date(m.meeting_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}{m.created_by ? ` · ${m.created_by}` : ''}</Text>
+                    <Text style={styles.historyTime}>
+                      {new Date(String(m.meeting_at).replace('Z','').replace(' ','T')).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      {m.created_by ? ` · ${m.created_by}` : ''}
+                    </Text>
                   </View>
                   <TouchableOpacity onPress={() => handleDeleteMeeting(m.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="trash-outline" size={16} color={Colors.danger} />
@@ -698,6 +748,12 @@ const styles = StyleSheet.create({
   historyMonth: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
   historyPurpose: { fontSize: 14, fontWeight: '700', color: Colors.text },
   historyTime: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  upcomingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  upcomingBadgeWrap: { flexDirection: 'row', marginBottom: 2 },
+  upcomingBadge: { backgroundColor: Colors.accent + '20', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  upcomingBadgeText: { fontSize: 9, fontWeight: '800', color: Colors.accent, letterSpacing: 0.5 },
+  logBtn: { backgroundColor: Colors.accent + '18', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 },
+  logBtnText: { fontSize: 12, fontWeight: '700', color: Colors.accent },
   empty: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 12 },
   modal: { flex: 1, backgroundColor: Colors.background },
   modalHeader: {
