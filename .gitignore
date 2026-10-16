@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Secrets / credentials
+firebase_key/
+*firebase-adminsdk*.json
+*.keystore
+*.jks
+.env
+.env.*
+!.env.example
+
+# Build output
+apk_output/
+*.apk
+*.aab
+
+# Archives
+*.zip
+
+# Dependencies
+node_modules/
+vendor/
+
+# IDE
+.idea/
+.vscode/
