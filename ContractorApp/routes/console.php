@@ -9,5 +9,8 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Send meeting reminders every 15 minutes (24h-before and 1h-before windows)
-Schedule::command(SendMeetingReminders::class)->everyFifteenMinutes();
+// Daily 6 AM meeting digest. Runs every 15 min; the command guards on hour === 6.
+// withoutOverlapping() prevents a stale run from firing a second digest in the same window.
+Schedule::command(SendMeetingReminders::class)
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(20);

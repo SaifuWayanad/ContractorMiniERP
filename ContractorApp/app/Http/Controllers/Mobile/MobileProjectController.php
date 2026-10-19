@@ -164,7 +164,7 @@ class MobileProjectController extends Controller
         $project->refresh();
 
         if ($project->next_meeting_at && $project->next_meeting_at->isToday()) {
-            $this->sendMeetingScheduledToday($project);
+            $this->sendMeetingScheduledToday($project, $project->next_meeting_at);
         }
 
         return response()->json(['message' => 'Project updated.']);
@@ -221,24 +221,24 @@ class MobileProjectController extends Controller
 
         // Send immediate notification if meeting is today
         if ($project->next_meeting_at && $project->next_meeting_at->isToday()) {
-            $this->sendMeetingScheduledToday($project);
+            $this->sendMeetingScheduledToday($project, $project->next_meeting_at);
         }
 
         return response()->json(['message' => 'Meeting schedule updated.']);
     }
 
-    private function sendMeetingScheduledToday(Project $project): void
+    private function sendMeetingScheduledToday(Project $project, \Illuminate\Support\Carbon $meetingAt): void
     {
         $users = User::where('contractor_id', $project->contractor_id)
             ->whereNotNull('push_token')
             ->get();
 
-        $time = $project->next_meeting_at->setTimezone(config('app.timezone'))->format('h:i A');
+        $time = $meetingAt->setTimezone(config('app.timezone'))->format('h:i A');
 
         $push = app(PushService::class);
 
         foreach ($users as $user) {
-            $push->send($user->push_token, 'Meeting Scheduled for Today', "Meeting at {$time} — {$project->name}", ['projectId' => $project->id]);
+            $push->send($user->push_token, 'Meeting Scheduled for Today', "Meeting at {$time} — {$project->name}", ['projectId' => $project->id, 'screen' => 'Meetings']);
         }
     }
 
@@ -254,6 +254,11 @@ class MobileProjectController extends Controller
         $meeting->contractor_id = $project->contractor_id;
         $meeting->created_by = $request->user()->id;
         $meeting->save();
+
+        // Notify contractor users if this meeting is today and was added after the 6 AM digest
+        if ($meeting->meeting_at->isToday()) {
+            $this->sendMeetingScheduledToday($project, $meeting->meeting_at);
+        }
 
         return response()->json([
             'id' => $meeting->id,
