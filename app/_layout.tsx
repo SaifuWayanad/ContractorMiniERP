@@ -4,7 +4,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthContext, AuthUser } from '@/hooks/useAuth';
 import { useRegisterPushToken } from '@/hooks/useRegisterPushToken';
 import { login, logout, getStoredUser, getStoredToken, saveStoredUser } from '@/services/auth';
@@ -25,6 +28,7 @@ async function checkForUpdate() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts(Ionicons.font);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,10 +49,15 @@ export default function RootLayout() {
         // ignore
       } finally {
         setIsLoading(false);
-        await SplashScreen.hideAsync();
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if ((fontsLoaded || fontError) && !isLoading) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError, isLoading]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -78,6 +87,17 @@ export default function RootLayout() {
   }, []);
 
   useRegisterPushToken(!!user);
+
+  // Navigate to the project when a notification is tapped
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const projectId = response.notification.request.content.data?.projectId;
+      if (projectId && user) {
+        router.push(`/(tabs)/projects/${projectId}`);
+      }
+    });
+    return () => sub.remove();
+  }, [user]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

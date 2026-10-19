@@ -35,18 +35,16 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          {/* Header */}
-          <View style={styles.header}>
-            <Image
-              source={require('../../assets/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
-
           {/* Card */}
           <View style={styles.card}>
-            <Text style={styles.title}>Welcome back</Text>
+            <View style={styles.header}>
+              <Image
+                source={require('../../assets/logo-plain.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+
             <Text style={styles.subtitle}>Sign in to your account</Text>
 
             <View style={styles.field}>
@@ -105,15 +103,15 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.primary },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  header: { alignItems: 'center', marginBottom: 24 },
-  logo: { width: 220, height: 220 },
+  header: { alignItems: 'center', marginBottom: 4 },
+  logo: { width: 220, height: 169 },
   card: {
     backgroundColor: Colors.white, borderRadius: 20, padding: 24,
     shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
   },
-  title: { fontSize: 22, fontWeight: '800', color: Colors.text, marginBottom: 4 },
-  subtitle: { fontSize: 14, color: Colors.textSecondary, marginBottom: 24 },
+  title: { fontSize: 22, fontWeight: '800', color: Colors.text, marginBottom: 4, textAlign: 'center' },
+  subtitle: { fontSize: 14, color: Colors.textSecondary, marginBottom: 24, textAlign: 'center' },
   field: { marginBottom: 16 },
   label: { fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 6 },
   inputWrap: {

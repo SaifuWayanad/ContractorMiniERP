@@ -62,9 +62,8 @@ function actionColor(action: string) {
   }
 }
 
-function toLocalISO(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+function toUTCISO(date: Date): string {
+  return date.toISOString(); // Always UTC — server stores/returns UTC, mobile converts for display
 }
 
 function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt: string) => void }) {
@@ -74,7 +73,7 @@ function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt
   const [androidDate, setAndroidDate] = useState<Date>(new Date());
 
   const display = value
-    ? new Date(value).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+    ? new Date(value).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })
     : '';
 
   function handlePress() {
@@ -98,7 +97,7 @@ function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt
     if (!sel) return;
     const combined = new Date(androidDate);
     combined.setHours(sel.getHours(), sel.getMinutes(), 0, 0);
-    onChange(toLocalISO(combined));
+    onChange(toUTCISO(combined));
   }
 
   return (
@@ -137,7 +136,7 @@ function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt
             <TouchableOpacity onPress={() => setIosOpen(false)} style={styles.iosInlineBtn}>
               <Text style={styles.iosInlineCancel}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => { onChange(toLocalISO(iosPending)); setIosOpen(false); }} style={styles.iosInlineBtn}>
+            <TouchableOpacity onPress={() => { onChange(toUTCISO(iosPending)); setIosOpen(false); }} style={styles.iosInlineBtn}>
               <Text style={styles.iosInlineDone}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -167,11 +166,11 @@ function Row({ label, value, phone, email }: { label: string; value: string | nu
   );
 }
 
-// Parse server datetime strings robustly: if no timezone info, treat as UTC
+// Parse server datetime strings — handles Z (UTC), +HH:MM offsets, and bare strings (treated as UTC for safety)
 function parseDate(iso: string | null): Date | null {
   if (!iso) return null;
   const s = iso.replace(' ', 'T');
-  if (!s.match(/Z$/) && !s.match(/[+-]\d{2}:\d{2}$/)) return new Date(s + 'Z');
+  if (!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) return new Date(s + 'Z');
   return new Date(s);
 }
 function fmt(iso: string | null) {
@@ -182,7 +181,8 @@ function fmt(iso: string | null) {
 function fmtDT(iso: string | null) {
   const d = parseDate(iso);
   if (!d) return null;
-  return `${d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} · ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+  const tz = { timeZone: 'Asia/Kolkata' };
+  return `${d.toLocaleDateString('en-IN', { ...tz, day: '2-digit', month: 'short', year: 'numeric' })} · ${d.toLocaleTimeString('en-IN', { ...tz, hour: '2-digit', minute: '2-digit', hour12: true })}`;
 }
 
 export default function ProjectDetailScreen() {
@@ -217,11 +217,26 @@ export default function ProjectDetailScreen() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
+    setLoadError(null);
     try {
       const res = await api.get(`/mobile/projects/${id}`);
-      setProject(res.data);
-    } catch { /* ignore */ } finally {
+      const d = res.data;
+      // Normalise — older server responses may omit these arrays
+      setProject({
+        ...d,
+        dealers:   Array.isArray(d.dealers)   ? d.dealers   : [],
+        locations: Array.isArray(d.locations) ? d.locations : [],
+        works:     Array.isArray(d.works)     ? d.works     : [],
+        meetings:  Array.isArray(d.meetings)  ? d.meetings  : [],
+      });
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Unknown error';
+      setLoadError(`${status ? `[${status}] ` : ''}${msg}`);
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -270,6 +285,27 @@ export default function ProjectDetailScreen() {
     ]);
   }
 
+  async function handleCompleteMeeting() {
+    Alert.alert(
+      'Mark Meeting Done',
+      'This will log the meeting in history and clear the scheduled date.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Mark Done',
+          onPress: async () => {
+            try {
+              await api.patch(`/mobile/projects/${id}/meeting/complete`);
+              load();
+            } catch (err: any) {
+              Alert.alert('Error', err?.response?.data?.message ?? 'Failed to complete meeting.');
+            }
+          },
+        },
+      ],
+    );
+  }
+
   async function handleSetMeeting() {
     setMeetingSaving(true);
     try {
@@ -287,12 +323,7 @@ export default function ProjectDetailScreen() {
   }
 
   function openMeetingModal() {
-    if (project?.next_meeting_at) {
-      const d = parseDate(project.next_meeting_at);
-      setMeetingAt(d ? toLocalISO(d) : '');
-    } else {
-      setMeetingAt('');
-    }
+    setMeetingAt(project?.next_meeting_at ?? '');
     setMeetingNotes(project?.next_meeting_notes ?? '');
     setMeetingModal(true);
   }
@@ -369,7 +400,12 @@ export default function ProjectDetailScreen() {
   }
 
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={Colors.accent} /></View>;
-  if (!project) return <View style={styles.centered}><Text style={{ color: Colors.textMuted }}>Project not found.</Text></View>;
+  if (!project) return (
+    <View style={styles.centered}>
+      <Text style={{ color: Colors.textMuted, marginBottom: 8 }}>Project not found.</Text>
+      {loadError && <Text style={{ color: Colors.danger, fontSize: 12, textAlign: 'center', paddingHorizontal: 24 }}>{loadError}</Text>}
+    </View>
+  );
 
   const meetingDays = project.next_meeting_at
     ? Math.round((new Date(project.next_meeting_at).getTime() - Date.now()) / 86400000)
@@ -431,10 +467,18 @@ export default function ProjectDetailScreen() {
                 </View>
               )}
             </View>
-            <TouchableOpacity style={styles.meetingSetBtn} onPress={openMeetingModal}>
-              <Ionicons name="pencil-outline" size={14} color={Colors.accent} />
-              <Text style={styles.meetingSetBtnText}>{project.next_meeting_at ? 'Update Meeting' : 'Schedule Meeting'}</Text>
-            </TouchableOpacity>
+            <View style={styles.meetingActions}>
+              {project.next_meeting_at && (
+                <TouchableOpacity style={[styles.meetingSetBtn, styles.meetingDoneBtn]} onPress={handleCompleteMeeting}>
+                  <Ionicons name="checkmark-circle-outline" size={14} color={Colors.success} />
+                  <Text style={[styles.meetingSetBtnText, { color: Colors.success }]}>Mark Done</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.meetingSetBtn} onPress={openMeetingModal}>
+                <Ionicons name="pencil-outline" size={14} color={Colors.accent} />
+                <Text style={styles.meetingSetBtnText}>{project.next_meeting_at ? 'Update' : 'Schedule Meeting'}</Text>
+              </TouchableOpacity>
+            </View>
           </Card>
 
           {/* Details */}
@@ -564,10 +608,10 @@ export default function ProjectDetailScreen() {
               <View style={styles.upcomingRow}>
                 <View style={[styles.historyDateBox, { borderColor: Colors.accent + '40', backgroundColor: Colors.accent + '10' }]}>
                   <Text style={[styles.historyDay, { color: Colors.accent }]}>
-                    {parseDate(project.next_meeting_at)?.getDate()}
+                    {parseDate(project.next_meeting_at)?.toLocaleDateString('en-IN', { day: 'numeric', timeZone: 'Asia/Kolkata' })}
                   </Text>
                   <Text style={[styles.historyMonth, { color: Colors.accent }]}>
-                    {parseDate(project.next_meeting_at)?.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })}
+                    {parseDate(project.next_meeting_at)?.toLocaleDateString('en-IN', { month: 'short', year: '2-digit', timeZone: 'Asia/Kolkata' })}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -575,15 +619,14 @@ export default function ProjectDetailScreen() {
                     <View style={styles.upcomingBadge}><Text style={styles.upcomingBadgeText}>UPCOMING</Text></View>
                   </View>
                   <Text style={styles.historyTime}>
-                    {parseDate(project.next_meeting_at)?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                    {parseDate(project.next_meeting_at)?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
                   </Text>
                   {project.next_meeting_notes ? <Text style={[styles.historyPurpose, { marginTop: 1 }]} numberOfLines={1}>{project.next_meeting_notes}</Text> : null}
                 </View>
                 <TouchableOpacity
                   style={styles.logBtn}
                   onPress={() => {
-                    const d = parseDate(project.next_meeting_at);
-                    setLogDate(d ? toLocalISO(d) : '');
+                    setLogDate(project.next_meeting_at ?? '');
                     setLogPurpose(project.next_meeting_notes ?? '');
                     setLogModal(true);
                   }}
@@ -600,16 +643,16 @@ export default function ProjectDetailScreen() {
                 <View key={m.id} style={[styles.historyRow, (i > 0 || project.next_meeting_at) && styles.locBorder]}>
                   <View style={styles.historyDateBox}>
                     <Text style={styles.historyDay}>
-                      {new Date(String(m.meeting_at).replace('Z','').replace(' ','T')).getDate()}
+                      {parseDate(m.meeting_at)?.toLocaleDateString('en-IN', { day: 'numeric', timeZone: 'Asia/Kolkata' })}
                     </Text>
                     <Text style={styles.historyMonth}>
-                      {new Date(String(m.meeting_at).replace('Z','').replace(' ','T')).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })}
+                      {parseDate(m.meeting_at)?.toLocaleDateString('en-IN', { month: 'short', year: '2-digit', timeZone: 'Asia/Kolkata' })}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.historyPurpose}>{m.purpose}</Text>
                     <Text style={styles.historyTime}>
-                      {new Date(String(m.meeting_at).replace('Z','').replace(' ','T')).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      {parseDate(m.meeting_at)?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
                       {m.created_by ? ` · ${m.created_by}` : ''}
                     </Text>
                   </View>
@@ -794,7 +837,9 @@ const styles = StyleSheet.create({
   meetingBannerNotes: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
   daysBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', justifyContent: 'center' },
   daysBadgeText: { fontSize: 12, fontWeight: '800' },
-  meetingSetBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, alignSelf: 'flex-start' },
+  meetingActions: { flexDirection: 'row', gap: 16, marginTop: 10, flexWrap: 'wrap' },
+  meetingSetBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  meetingDoneBtn: {},
   meetingSetBtnText: { fontSize: 13, fontWeight: '600', color: Colors.accent },
   locRow: { paddingVertical: 10 },
   locBorder: { borderTopWidth: 1, borderTopColor: Colors.border },

@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, TextInput,
   TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ScreenHeader, HeaderSaveButton } from '@/components/ui/ScreenHeader';
@@ -26,7 +27,7 @@ function Input(props: React.ComponentProps<typeof TextInput>) {
 }
 
 export default function EditProfileScreen() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, signOut } = useAuth();
 
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
@@ -53,6 +54,13 @@ export default function EditProfileScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleSignOut() {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+    ]);
   }
 
   return (
@@ -103,6 +111,19 @@ export default function EditProfileScreen() {
               : <Text style={s.submitBtnText}>Save Changes</Text>}
           </TouchableOpacity>
 
+          <View style={s.menu}>
+            <TouchableOpacity style={s.menuRow} onPress={() => router.push('/(tabs)/change-password')} activeOpacity={0.7}>
+              <Ionicons name="key-outline" size={18} color={Colors.text} style={s.menuIcon} />
+              <Text style={s.menuText}>Change Password</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+            <View style={s.menuDivider} />
+            <TouchableOpacity style={s.menuRow} onPress={handleSignOut} activeOpacity={0.7}>
+              <Ionicons name="log-out-outline" size={18} color={Colors.danger} style={s.menuIcon} />
+              <Text style={[s.menuText, { color: Colors.danger }]}>Sign Out</Text>
+            </TouchableOpacity>
+          </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -133,4 +154,12 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginTop: 8,
   },
   submitBtnText: { fontSize: 15, fontWeight: '800', color: Colors.primary },
+  menu: {
+    marginTop: 24, backgroundColor: Colors.white, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.border, overflow: 'hidden',
+  },
+  menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
+  menuIcon: { marginRight: 12 },
+  menuText: { flex: 1, fontSize: 15, fontWeight: '500', color: Colors.text },
+  menuDivider: { height: 1, backgroundColor: Colors.border },
 });

@@ -2,7 +2,6 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@/hooks/useAuth';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -12,7 +11,6 @@ function TabIcon({ name, focused }: { name: IoniconName; focused: boolean }) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
   const tabBarHeight = 56 + insets.bottom;
 
   return (
@@ -36,7 +34,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Home',
           tabBarIcon: ({ focused }) => <TabIcon name="grid" focused={focused} />,
           headerTitle: 'Build Mate',
         }}
@@ -53,6 +51,7 @@ export default function TabsLayout() {
         name="works/index"
         options={{
           title: 'Works',
+          href: null,
           tabBarIcon: ({ focused }) => <TabIcon name="list" focused={focused} />,
           headerTitle: 'Works',
         }}
@@ -68,15 +67,24 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="clients/index"
         options={{
-          title: 'Clients',
+          title: 'Customers',
           tabBarIcon: ({ focused }) => <TabIcon name="person-circle" focused={focused} />,
-          headerTitle: 'Clients',
+          headerTitle: 'Customers',
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ focused }) => <TabIcon name="person" focused={focused} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="dealers/index"
         options={{
           title: 'Contacts',
+          href: null,
           tabBarIcon: ({ focused }) => <TabIcon name="people" focused={focused} />,
           headerTitle: 'Contacts',
         }}
@@ -85,13 +93,12 @@ export default function TabsLayout() {
         name="admin/index"
         options={{
           title: 'Admin',
-          href: user?.is_admin ? undefined : null,
+          href: null,
           tabBarIcon: ({ focused }) => <TabIcon name="shield-checkmark" focused={focused} />,
           headerShown: false,
         }}
       />
       {/* hidden screens */}
-      <Tabs.Screen name="profile" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="change-password" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="projects/[id]" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="projects/form" options={{ href: null, headerShown: false }} />

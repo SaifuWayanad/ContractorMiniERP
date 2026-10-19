@@ -311,8 +311,8 @@ export default function ProjectFormScreen() {
         await api.put(`/mobile/projects/${id}`, body);
         Alert.alert('Saved', 'Project updated.', [{ text: 'OK', onPress: () => router.back() }]);
       } else {
-        const res = await api.post('/mobile/projects', body);
-        Alert.alert('Created', `"${res.data.name}" has been created.`, [{ text: 'OK', onPress: () => router.navigate('/(tabs)/projects') }]);
+        await api.post('/mobile/projects', body);
+        Alert.alert('Created', `"${name.trim()}" has been created.`, [{ text: 'OK', onPress: () => router.navigate('/(tabs)/projects') }]);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Failed to save.';

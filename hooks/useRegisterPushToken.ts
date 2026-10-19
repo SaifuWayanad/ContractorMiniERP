@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import api from '@/services/api';
 
@@ -14,7 +14,7 @@ export function useRegisterPushToken(isLoggedIn: boolean) {
     (async () => {
       try {
         const Device = (await import('expo-device')).default ?? await import('expo-device');
-        if (!Device.isDevice) return;
+        if (!Device.isDevice) { Alert.alert('Push', 'Not a physical device'); return; }
 
         const Notifications = await import('expo-notifications');
 
@@ -44,12 +44,13 @@ export function useRegisterPushToken(isLoggedIn: boolean) {
           finalStatus = status;
         }
 
-        if (finalStatus !== 'granted') return;
+        if (finalStatus !== 'granted') { Alert.alert('Push', 'Notification permission denied'); return; }
 
-        const tokenData = await Notifications.getExpoPushTokenAsync();
-        await api.post('/mobile/device-token', { token: tokenData.data });
-      } catch {
-        // non-critical — silently ignore
+        // Native FCM token: sent straight to Firebase by the server, no Expo account needed.
+        const tokenData = await Notifications.getDevicePushTokenAsync();
+        await api.post('/mobile/device-token', { token: String(tokenData.data) });
+      } catch (e: any) {
+        Alert.alert('Push registration failed', String(e?.response?.data?.message ?? e?.message ?? e));
       }
     })();
   }, [isLoggedIn]);

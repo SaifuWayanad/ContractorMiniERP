@@ -21,7 +21,9 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.buildmate.app"
+      "package": "com.buildmate.app",
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 2
     },
     "web": {
       "bundler": "metro",
