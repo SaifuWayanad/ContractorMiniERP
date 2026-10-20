@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { Colors } from '@/constants/Colors';
+import { goBack } from '@/services/navigation';
 
 type Props = {
   title: string;
@@ -19,7 +19,7 @@ export function ScreenHeader({ title, subtitle, onBack, right }: Props) {
     <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
       <View style={styles.row}>
         <TouchableOpacity
-          onPress={onBack ?? (() => router.back())}
+          onPress={onBack ?? (() => goBack())}
           style={styles.backBtn}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >

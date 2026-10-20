@@ -10,6 +10,7 @@ import { ScreenHeader, HeaderSaveButton } from '@/components/ui/ScreenHeader';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
+import { goBack } from '@/services/navigation';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -48,7 +49,7 @@ export default function EditProfileScreen() {
         phone: phone.trim() || undefined,
       });
       await updateUser(res.data.user);
-      Alert.alert('Saved', 'Profile updated successfully.', [{ text: 'OK', onPress: () => router.back() }]);
+      Alert.alert('Saved', 'Profile updated successfully.', [{ text: 'OK', onPress: () => goBack() }]);
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.message ?? 'Failed to save.');
     } finally {

@@ -9,6 +9,7 @@ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { ScreenHeader, HeaderSaveButton } from '@/components/ui/ScreenHeader';
 import { Colors } from '@/constants/Colors';
 import api from '@/services/api';
+import { goBack } from '@/services/navigation';
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -107,7 +108,7 @@ export default function ContractorFormScreen() {
 
       if (isEdit) {
         await api.put(`/mobile/admin/contractors/${id}`, body);
-        Alert.alert('Saved', 'Contractor updated.', [{ text: 'OK', onPress: () => router.back() }]);
+        Alert.alert('Saved', 'Contractor updated.', [{ text: 'OK', onPress: () => goBack() }]);
       } else {
         await api.post('/mobile/admin/contractors', body);
         Alert.alert('Created', 'Contractor added.', [{ text: 'OK', onPress: () => router.navigate('/(tabs)/admin/contractors') }]);

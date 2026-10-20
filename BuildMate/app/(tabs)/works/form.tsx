@@ -12,6 +12,7 @@ import { ScreenHeader, HeaderSaveButton } from '@/components/ui/ScreenHeader';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
+import { goBack } from '@/services/navigation';
 
 const STATUS_OPTIONS: PickerOption[] = [
   { label: 'Pending', value: 'pending' },
@@ -183,7 +184,7 @@ export default function WorkFormScreen() {
 
       if (isEdit) {
         await api.patch(`/mobile/works/${id}`, body);
-        Alert.alert('Saved', 'Work updated.', [{ text: 'OK', onPress: () => router.back() }]);
+        Alert.alert('Saved', 'Work updated.', [{ text: 'OK', onPress: () => goBack() }]);
       } else {
         await api.post('/mobile/works', body);
         Alert.alert('Created', 'Work added.', [{ text: 'OK', onPress: () => router.navigate('/(tabs)/works') }]);

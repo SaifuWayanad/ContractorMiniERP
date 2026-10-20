@@ -11,6 +11,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { ModalHeader } from '@/components/ui/ModalHeader';
 import { Colors } from '@/constants/Colors';
 import api from '@/services/api';
 
@@ -689,12 +690,7 @@ export default function ProjectDetailScreen() {
       <Modal visible={logModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setLogModal(false)}>
         <RNSafeAreaView style={styles.modal}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Log Meeting</Text>
-              <TouchableOpacity onPress={() => setLogModal(false)}>
-                <Ionicons name="close" size={22} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
+            <ModalHeader title="Log Meeting" onBack={() => setLogModal(false)} />
             <View style={styles.modalBody}>
               <Text style={styles.modalLabel}>Date & Time</Text>
               <InlineDateTimeField value={logDate} onChange={setLogDate} />
@@ -721,12 +717,7 @@ export default function ProjectDetailScreen() {
       <Modal visible={meetingModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setMeetingModal(false)}>
         <RNSafeAreaView style={styles.modal}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Schedule Meeting</Text>
-              <TouchableOpacity onPress={() => setMeetingModal(false)}>
-                <Ionicons name="close" size={22} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
+            <ModalHeader title="Schedule Meeting" onBack={() => setMeetingModal(false)} />
             <View style={styles.modalBody}>
               <Text style={styles.modalLabel}>Date & Time</Text>
               <InlineDateTimeField value={meetingAt} onChange={setMeetingAt} />
@@ -757,12 +748,7 @@ export default function ProjectDetailScreen() {
       {/* Assign Contact Modal */}
       <Modal visible={contactModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setContactModal(false)}>
         <RNSafeAreaView style={styles.modal}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Assign Contact</Text>
-            <TouchableOpacity onPress={() => setContactModal(false)}>
-              <Ionicons name="close" size={22} color={Colors.text} />
-            </TouchableOpacity>
-          </View>
+          <ModalHeader title="Assign Contact" onBack={() => setContactModal(false)} />
           <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
             <View style={styles.searchWrap}>
               <Ionicons name="search-outline" size={16} color={Colors.textMuted} style={{ marginRight: 8 }} />

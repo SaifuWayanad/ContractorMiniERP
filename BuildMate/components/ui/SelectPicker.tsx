@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { ModalHeader } from '@/components/ui/ModalHeader';
 
 export type PickerOption = { label: string; value: string };
 
@@ -17,9 +18,13 @@ type Props = {
   placeholder?: string;
   searchable?: boolean;
   required?: boolean;
+  onAddNew?: () => void;
+  addNewLabel?: string;
 };
 
-export function SelectPicker({ label, value, options, onChange, placeholder = 'Select…', searchable = false, required }: Props) {
+export function SelectPicker({
+  label, value, options, onChange, placeholder = 'Select…', searchable = false, required, onAddNew, addNewLabel = 'Create new',
+}: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -42,12 +47,7 @@ export function SelectPicker({ label, value, options, onChange, placeholder = 'S
 
       <Modal visible={open} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={s.modal}>
-          <View style={s.modalHeader}>
-            <Text style={s.modalTitle}>{label}</Text>
-            <TouchableOpacity onPress={() => setOpen(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close" size={22} color={Colors.text} />
-            </TouchableOpacity>
-          </View>
+          <ModalHeader title={label} onBack={() => setOpen(false)} />
           {searchable && (
             <View style={s.searchBar}>
               <Ionicons name="search" size={16} color={Colors.textMuted} style={{ marginRight: 8 }} />
@@ -74,6 +74,20 @@ export function SelectPicker({ label, value, options, onChange, placeholder = 'S
               </TouchableOpacity>
             )}
             ItemSeparatorComponent={() => <View style={s.sep} />}
+            ListFooterComponent={onAddNew ? (
+              <TouchableOpacity
+                style={s.addNew}
+                onPress={() => {
+                  setOpen(false);
+                  // Let the picker finish closing before another modal opens (iOS won't stack them otherwise).
+                  setTimeout(onAddNew, 350);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={Colors.accent} />
+                <Text style={s.addNewText}>{addNewLabel}</Text>
+              </TouchableOpacity>
+            ) : null}
           />
         </SafeAreaView>
       </Modal>
@@ -111,4 +125,10 @@ const s = StyleSheet.create({
   optionText: { fontSize: 15, color: Colors.text },
   optionTextActive: { color: Colors.accent, fontWeight: '700' },
   sep: { height: 1, backgroundColor: Colors.border, marginLeft: 16 },
+  addNew: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 14, paddingHorizontal: 16, marginTop: 8,
+    backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.border,
+  },
+  addNewText: { fontSize: 15, fontWeight: '700', color: Colors.accent },
 });

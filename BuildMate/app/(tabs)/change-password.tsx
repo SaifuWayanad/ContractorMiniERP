@@ -4,10 +4,10 @@ import {
   TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Colors } from '@/constants/Colors';
 import api from '@/services/api';
+import { goBack } from '@/services/navigation';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -61,7 +61,7 @@ setSaving(true);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      Alert.alert('Done', 'Your password has been changed successfully.', [{ text: 'OK', onPress: () => router.back() }]);
+      Alert.alert('Done', 'Your password has been changed successfully.', [{ text: 'OK', onPress: () => goBack() }]);
     } catch (err: any) {
       const msg =
         err?.response?.data?.errors?.current_password?.[0] ??

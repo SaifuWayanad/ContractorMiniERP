@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Stack, router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -88,16 +88,25 @@ export default function RootLayout() {
 
   useRegisterPushToken(!!user);
 
-  // Navigate to the project when a notification is tapped
+  // Open the right screen when a notification is tapped. The hook also returns the tap that
+  // launched a closed app, so it is handled once the user is signed in.
+  const lastNotificationResponse = Notifications.useLastNotificationResponse();
+  const handledNotificationId = useRef<string | null>(null);
+
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const projectId = response.notification.request.content.data?.projectId;
-      if (projectId && user) {
-        router.push(`/(tabs)/projects/${projectId}`);
-      }
-    });
-    return () => sub.remove();
-  }, [user]);
+    if (!lastNotificationResponse || !user) return;
+
+    const { identifier, content } = lastNotificationResponse.notification.request;
+    if (handledNotificationId.current === identifier) return;
+    handledNotificationId.current = identifier;
+
+    const data = content.data ?? {};
+    if (data.screen === 'meetings') {
+      router.push('/(tabs)/meetings');
+    } else if (data.projectId) {
+      router.push(`/(tabs)/projects/${data.projectId}`);
+    }
+  }, [lastNotificationResponse, user]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

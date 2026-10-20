@@ -9,6 +9,7 @@ import { SelectPicker, PickerOption } from '@/components/ui/SelectPicker';
 import { ScreenHeader, HeaderSaveButton } from '@/components/ui/ScreenHeader';
 import { Colors } from '@/constants/Colors';
 import api from '@/services/api';
+import { goBack } from '@/services/navigation';
 
 const STATUS_OPTIONS: PickerOption[] = [
   { label: 'Active', value: 'active' },
@@ -123,7 +124,7 @@ export default function UserFormScreen() {
       if (isEdit) {
         body.status = status;
         await api.put(`/mobile/admin/users/${id}`, body);
-        Alert.alert('Saved', 'User updated.', [{ text: 'OK', onPress: () => router.back() }]);
+        Alert.alert('Saved', 'User updated.', [{ text: 'OK', onPress: () => goBack() }]);
       } else {
         await api.post('/mobile/admin/users', body);
         Alert.alert('Created', 'User added.', [{ text: 'OK', onPress: () => router.navigate('/(tabs)/admin/users') }]);

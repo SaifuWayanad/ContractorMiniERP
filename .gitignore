@@ -25,3 +25,6 @@ vendor/
 # IDE
 .idea/
 .vscode/
+
+# BuildMate Firebase config (contains API key)
+BuildMate/google-services.json

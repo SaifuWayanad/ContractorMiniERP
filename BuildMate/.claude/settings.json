@@ -1,5 +1,7 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true
-  }
+  },
+ "permissions": { "allow": ["Bash(curl*developers.hostinger.com/api/hosting/v1/accounts/*/cron-jobs*)"] } 
+
 }

@@ -9,6 +9,7 @@ import { ScreenHeader, HeaderSaveButton } from '@/components/ui/ScreenHeader';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
+import { goBack } from '@/services/navigation';
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -76,7 +77,7 @@ export default function DealerFormScreen() {
 
       if (isEdit) {
         await api.put(`/mobile/dealers/${id}`, body);
-        Alert.alert('Saved', 'Contact updated.', [{ text: 'OK', onPress: () => router.back() }]);
+        Alert.alert('Saved', 'Contact updated.', [{ text: 'OK', onPress: () => goBack() }]);
       } else {
         await api.post('/mobile/dealers', body);
         Alert.alert('Created', 'Contact added.', [{ text: 'OK', onPress: () => router.navigate('/(tabs)/dealers') }]);

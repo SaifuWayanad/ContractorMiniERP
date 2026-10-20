@@ -10,6 +10,7 @@ import { ScreenHeader, HeaderSaveButton } from '@/components/ui/ScreenHeader';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
+import { goBack } from '@/services/navigation';
 
 const STATUS_OPTIONS: PickerOption[] = [
   { label: 'Active', value: 'active' },
@@ -110,7 +111,7 @@ export default function ClientFormScreen() {
 
       if (isEdit) {
         await api.put(`/mobile/clients/${id}`, body);
-        Alert.alert('Saved', 'Client updated.', [{ text: 'OK', onPress: () => router.back() }]);
+        Alert.alert('Saved', 'Client updated.', [{ text: 'OK', onPress: () => goBack() }]);
       } else {
         await api.post('/mobile/clients', body);
         Alert.alert('Created', 'Client added.', [{ text: 'OK', onPress: () => router.navigate('/(tabs)/clients') }]);

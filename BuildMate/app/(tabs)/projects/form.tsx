@@ -12,6 +12,7 @@ import { ScreenHeader, HeaderSaveButton } from '@/components/ui/ScreenHeader';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
+import { goBack } from '@/services/navigation';
 
 const STATUS_OPTIONS: PickerOption[] = [
   { label: 'Planning', value: 'planning' },
@@ -224,6 +225,17 @@ export default function ProjectFormScreen() {
   const [meetingAt, setMeetingAt] = useState('');
   const [meetingNotes, setMeetingNotes] = useState('');
 
+  const [workTypes, setWorkTypes] = useState<PickerOption[]>([]);
+  const [wtOpen, setWtOpen] = useState(false);
+  const [wtSaving, setWtSaving] = useState(false);
+  const [wtName, setWtName] = useState('');
+
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [qName, setQName] = useState('');
+  const [qPhone, setQPhone] = useState('');
+  const [qEmail, setQEmail] = useState('');
+
   useFocusEffect(
     useCallback(() => {
       if (!isEdit) {
@@ -253,6 +265,14 @@ export default function ProjectFormScreen() {
     } catch { /* ignore */ }
   }, [isAdmin]);
 
+  const loadWorkTypes = useCallback(async () => {
+    if (isAdmin && !contractorId) { setWorkTypes([]); return; }
+    try {
+      const res = await api.get('/mobile/work-types', { params: isAdmin ? { contractor_id: contractorId } : {} });
+      setWorkTypes((res.data ?? []).map((t: { id: number; name: string }) => ({ label: t.name, value: t.name })));
+    } catch { /* ignore */ }
+  }, [isAdmin, contractorId]);
+
   const loadProject = useCallback(async () => {
     if (!id) return;
     try {
@@ -278,11 +298,72 @@ export default function ProjectFormScreen() {
   }, [id]);
 
   useEffect(() => {
+    loadWorkTypes();
+  }, [loadWorkTypes]);
+
+  useEffect(() => {
     loadClients();
     loadContractors();
     loadProject();
     if (!isEdit) setLoading(false);
   }, [loadClients, loadContractors, loadProject, isEdit]);
+
+  // Keep the saved value selectable even if it is not in the contractor's list any more.
+  const workTypeOptions: PickerOption[] = typeOfWork && !workTypes.some((t) => t.value === typeOfWork)
+    ? [...workTypes, { label: typeOfWork, value: typeOfWork }]
+    : workTypes;
+
+  function openAddWorkType() {
+    if (isAdmin && !contractorId) { Alert.alert('Required', 'Please select a contractor first.'); return; }
+    setWtName('');
+    setWtOpen(true);
+  }
+
+  async function handleAddWorkType() {
+    if (!wtName.trim()) { Alert.alert('Required', 'Type of work is required.'); return; }
+
+    setWtSaving(true);
+    try {
+      const body: Record<string, string> = { name: wtName.trim() };
+      if (isAdmin && contractorId) body.contractor_id = contractorId;
+
+      const res = await api.post('/mobile/work-types', body);
+      await loadWorkTypes();
+      setTypeOfWork(res.data.name);
+      setWtOpen(false);
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to add type of work.');
+    } finally {
+      setWtSaving(false);
+    }
+  }
+
+  function openQuickClient() {
+    if (isAdmin && !contractorId) { Alert.alert('Required', 'Please select a contractor first.'); return; }
+    setQName(''); setQPhone(''); setQEmail('');
+    setQuickOpen(true);
+  }
+
+  async function handleQuickClient() {
+    if (!qName.trim()) { Alert.alert('Required', 'Client name is required.'); return; }
+
+    setQuickSaving(true);
+    try {
+      const body: Record<string, string> = { name: qName.trim() };
+      if (isAdmin && contractorId) body.contractor_id = contractorId;
+      if (qPhone.trim()) body.phone = qPhone.trim();
+      if (qEmail.trim()) body.email = qEmail.trim();
+
+      const res = await api.post('/mobile/clients', body);
+      await loadClients();
+      setClientId(String(res.data.id));
+      setQuickOpen(false);
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to create client.');
+    } finally {
+      setQuickSaving(false);
+    }
+  }
 
   async function handleSave() {
     if (!name.trim()) { Alert.alert('Required', 'Project name is required.'); return; }
@@ -309,7 +390,7 @@ export default function ProjectFormScreen() {
 
       if (isEdit) {
         await api.put(`/mobile/projects/${id}`, body);
-        Alert.alert('Saved', 'Project updated.', [{ text: 'OK', onPress: () => router.back() }]);
+        Alert.alert('Saved', 'Project updated.', [{ text: 'OK', onPress: () => goBack() }]);
       } else {
         await api.post('/mobile/projects', body);
         Alert.alert('Created', `"${name.trim()}" has been created.`, [{ text: 'OK', onPress: () => router.navigate('/(tabs)/projects') }]);
@@ -354,19 +435,30 @@ export default function ProjectFormScreen() {
               placeholder="Select client…"
               searchable
               required
+              onAddNew={openQuickClient}
+              addNewLabel="Create new client"
             />
 
             <Field label="Project Name" required>
               <Input value={name} onChangeText={setName} placeholder="e.g. Living Room Renovation" />
             </Field>
 
-            <Field label="Project Number">
-              <Input value={projectNumber} onChangeText={setProjectNumber} placeholder="Auto-generated if empty" autoCapitalize="characters" />
-            </Field>
+            {isEdit && (
+              <Field label="Project Number">
+                <Input value={projectNumber} onChangeText={setProjectNumber} placeholder="Auto-generated if empty" autoCapitalize="characters" />
+              </Field>
+            )}
 
-            <Field label="Type of Work">
-              <Input value={typeOfWork} onChangeText={setTypeOfWork} placeholder="e.g. Interior, Civil" />
-            </Field>
+            <SelectPicker
+              label="Type of Work"
+              value={typeOfWork}
+              options={workTypeOptions}
+              onChange={setTypeOfWork}
+              placeholder="Select type of work…"
+              searchable
+              onAddNew={openAddWorkType}
+              addNewLabel="Add new type of work"
+            />
 
             <SelectPicker
               label="Status"
@@ -408,6 +500,50 @@ export default function ProjectFormScreen() {
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
+
+      <Modal visible={quickOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setQuickOpen(false)}>
+        <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+          <ScreenHeader
+            title="New Client"
+            onBack={() => setQuickOpen(false)}
+            subtitle="Added to the client list and selected for this project"
+            right={<HeaderSaveButton onPress={handleQuickClient} saving={quickSaving} label="Save" />}
+          />
+          <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+            <Field label="Client Name" required>
+              <Input value={qName} onChangeText={setQName} placeholder="e.g. Rahul Nair" autoFocus />
+            </Field>
+            <Field label="Phone">
+              <Input value={qPhone} onChangeText={setQPhone} placeholder="Phone number" keyboardType="phone-pad" />
+            </Field>
+            <Field label="Email">
+              <Input value={qEmail} onChangeText={setQEmail} placeholder="Email address" keyboardType="email-address" autoCapitalize="none" />
+            </Field>
+            <TouchableOpacity style={s.submitBtn} onPress={handleQuickClient} disabled={quickSaving} activeOpacity={0.8}>
+              {quickSaving ? <ActivityIndicator color={Colors.primary} /> : <Text style={s.submitBtnText}>Create Client</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      <Modal visible={wtOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setWtOpen(false)}>
+        <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+          <ScreenHeader
+            title="New Type of Work"
+            onBack={() => setWtOpen(false)}
+            subtitle="Added to the list and selected for this project"
+            right={<HeaderSaveButton onPress={handleAddWorkType} saving={wtSaving} label="Save" />}
+          />
+          <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+            <Field label="Type of Work" required>
+              <Input value={wtName} onChangeText={setWtName} placeholder="e.g. Interior, Civil" autoFocus maxLength={80} />
+            </Field>
+            <TouchableOpacity style={s.submitBtn} onPress={handleAddWorkType} disabled={wtSaving} activeOpacity={0.8}>
+              {wtSaving ? <ActivityIndicator color={Colors.primary} /> : <Text style={s.submitBtnText}>Add Type of Work</Text>}
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
