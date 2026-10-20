@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DealerController;
+use App\Http\Controllers\WorkTypeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectLocationController;
@@ -73,6 +74,11 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         Route::patch('works/{work}/status', WorkStatusController::class)->name('works.status');
 
         Route::resource('dealers', DealerController::class)->except('show');
+        Route::get('work-types', [WorkTypeController::class, 'index'])->name('work-types.index');
+        Route::post('work-types', [WorkTypeController::class, 'store'])->name('work-types.store');
+        Route::post('work-types/quick', [WorkTypeController::class, 'quickStore'])->name('work-types.quick');
+        Route::put('work-types/{workType}', [WorkTypeController::class, 'update'])->name('work-types.update');
+        Route::delete('work-types/{workType}', [WorkTypeController::class, 'destroy'])->name('work-types.destroy');
         Route::post('dealers/quick', [DealerController::class, 'quickStore'])->name('dealers.quick');
     });
 

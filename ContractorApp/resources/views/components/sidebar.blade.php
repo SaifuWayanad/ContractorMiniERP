@@ -33,6 +33,7 @@
                 ['Customers', 'bi-person-vcard', 'clients.index', 'clients.*', 'clients.view'],
                 ['Projects', 'bi-building', 'projects.index', 'projects.index|projects.create|projects.show|projects.edit', 'projects.view'],
                 ['Contacts', 'bi-shop', 'dealers.index', 'dealers.*', 'dealers.view'],
+                ['Work Types', 'bi-tools', 'work-types.index', 'work-types.*', 'projects.view'],
             ],
             'Account' => [
                 ['My Profile', 'bi-person-badge', 'profile.show', 'profile.*', 'profile.view'],

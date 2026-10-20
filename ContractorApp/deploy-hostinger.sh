@@ -6,7 +6,7 @@
 #   export ADMIN_PASSWORD=...           # optional; generated and printed if unset
 #   ./deploy-hostinger.sh
 #
-# Re-running redeploys the code. Migrations/seeding only run once (guarded by storage/.installed).
+# Re-running redeploys the code and applies new migrations. Seeding only runs once (guarded by storage/.installed).
 set -euo pipefail
 
 DOMAIN="${DOMAIN:-buildmate.tech}"
@@ -149,8 +149,9 @@ cat > "$STAGE/install.sh" <<INSTALLEOF
 set -e
 cd ${APP_DIR}
 rm -f bm_*.zip
+# Pending migrations run on every deploy (migrate is a no-op when up to date).
+${PHP_BIN} artisan migrate --force
 if [ ! -f storage/.installed ]; then
-  ${PHP_BIN} artisan migrate --force
   ${PHP_BIN} artisan db:seed --force
   ${PHP_BIN} artisan db:seed --class=ProductionAdminSeeder --force
   touch storage/.installed

@@ -9,6 +9,7 @@ use App\Http\Controllers\Mobile\MobileClientController;
 use App\Http\Controllers\Mobile\MobileContractorController;
 use App\Http\Controllers\Mobile\MobileDashboardController;
 use App\Http\Controllers\Mobile\MobileDealerController;
+use App\Http\Controllers\Mobile\MobileWorkTypeController;
 use App\Http\Controllers\Mobile\MobileProfileController;
 use App\Http\Controllers\Mobile\MobileProjectController;
 use App\Http\Controllers\Mobile\MobileWorkController;
@@ -62,6 +63,12 @@ Route::prefix('mobile')->group(function (): void {
         Route::get('clients/{client}', [MobileClientController::class, 'show']);
         Route::put('clients/{client}', [MobileClientController::class, 'update']);
         Route::delete('clients/{client}', [MobileClientController::class, 'destroy']);
+
+        // Work types (project dropdown)
+        Route::get('work-types', [MobileWorkTypeController::class, 'index']);
+        Route::post('work-types', [MobileWorkTypeController::class, 'store']);
+        Route::put('work-types/{workType}', [MobileWorkTypeController::class, 'update']);
+        Route::delete('work-types/{workType}', [MobileWorkTypeController::class, 'destroy']);
 
         // Dealers (Contacts)
         Route::get('dealers', [MobileDealerController::class, 'index']);

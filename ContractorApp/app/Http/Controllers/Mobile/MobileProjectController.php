@@ -7,8 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Project;
 use App\Models\ProjectMeeting;
-use App\Models\User;
-use App\Services\PushService;
+use App\Services\MeetingDigestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -219,27 +218,11 @@ class MobileProjectController extends Controller
         $project->update($data);
         $project->refresh();
 
-        // Send immediate notification if meeting is today
-        if ($project->next_meeting_at && $project->next_meeting_at->isToday()) {
-            $this->sendMeetingScheduledToday($project);
+        if ($project->next_meeting_at) {
+            app(MeetingDigestService::class)->notifyMeetingScheduledToday($project, now());
         }
 
         return response()->json(['message' => 'Meeting schedule updated.']);
-    }
-
-    private function sendMeetingScheduledToday(Project $project): void
-    {
-        $users = User::where('contractor_id', $project->contractor_id)
-            ->whereNotNull('push_token')
-            ->get();
-
-        $time = $project->next_meeting_at->setTimezone(config('app.timezone'))->format('h:i A');
-
-        $push = app(PushService::class);
-
-        foreach ($users as $user) {
-            $push->send($user->push_token, 'Meeting Scheduled for Today', "Meeting at {$time} — {$project->name}", ['projectId' => $project->id]);
-        }
     }
 
     public function storeMeeting(Request $request, Project $project): JsonResponse

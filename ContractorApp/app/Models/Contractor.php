@@ -24,6 +24,11 @@ class Contractor extends Model
     /** @use HasFactory<ContractorFactory> */
     use HasFactory, LogsActivity, SoftDeletes;
 
+    protected static function booted(): void
+    {
+        static::created(fn (Contractor $contractor) => WorkType::seedDefaults($contractor->id));
+    }
+
     /**
      * Get the attributes that should be cast.
      *
