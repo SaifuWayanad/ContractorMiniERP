@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "Build Mate",
+    "slug": "buildmate",
+    "version": "1.0.0",
+    "scheme": "buildmate",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B2A4A"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.buildmate.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.buildmate.app",
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 2
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1B2A4A",
+          "image": "./assets/icon.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-notifications"
+    ],
+    "updates": {
+      "url": "https://u.expo.dev/d547f4fd-c429-4bdd-af0f-c4d5c3859e74"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d547f4fd-c429-4bdd-af0f-c4d5c3859e74"
+      }
+    },
+    "owner": "thasnakthaj"
+  }
+}
