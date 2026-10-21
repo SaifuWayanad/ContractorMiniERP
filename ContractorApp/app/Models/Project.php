@@ -73,7 +73,7 @@ class Project extends Model
      */
     public function dealers(): BelongsToMany
     {
-        return $this->belongsToMany(Dealer::class)->withTimestamps();
+        return $this->belongsToMany(Dealer::class, 'project_dealer')->withTimestamps();
     }
 
     /**

@@ -22,6 +22,17 @@ type Project = {
   next_meeting_at: string | null;
 };
 
+const IST_MS = (5 * 60 + 30) * 60 * 1000;
+const MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function istFmtMeeting(iso: string): string {
+  const s = iso.replace(' ', 'T');
+  const d = new Date((!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) ? s + 'Z' : s);
+  const ist = new Date(d.getTime() + IST_MS);
+  const h = ist.getUTCHours(), m = ist.getUTCMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  return `${String(ist.getUTCDate()).padStart(2,'0')} ${MONTHS_S[ist.getUTCMonth()]} · ${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
 function FAB({ onPress }: { onPress: () => void }) {
   return (
     <TouchableOpacity style={fab.btn} onPress={onPress} activeOpacity={0.85}>
@@ -89,7 +100,7 @@ export default function ProjectsScreen() {
                 <View style={styles.meetingChip}>
                   <Ionicons name="calendar-outline" size={12} color={Colors.accent} />
                   <Text style={styles.meetingChipText}>
-                    {new Date(item.next_meeting_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} · {new Date(item.next_meeting_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                    {istFmtMeeting(item.next_meeting_at)}
                   </Text>
                 </View>
               )}

@@ -29,13 +29,23 @@ type DashboardData = {
   upcoming_deadlines: Array<{ type: string; title: string; subtitle: string | null; date: string; days: number }>;
 };
 
+const IST_MS = (5 * 60 + 30) * 60 * 1000;
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function istDate(iso: string): Date {
+  const s = iso.replace(' ', 'T');
+  const d = new Date((!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) ? s + 'Z' : s);
+  return new Date(d.getTime() + IST_MS);
+}
 function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const ist = istDate(iso);
+  return `${String(ist.getUTCDate()).padStart(2,'0')} ${MONTHS_SHORT[ist.getUTCMonth()]} ${ist.getUTCFullYear()}`;
 }
 function formatTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const ist = istDate(iso);
+  const h = ist.getUTCHours(), m = ist.getUTCMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
 
 export default function DashboardScreen() {
@@ -129,8 +139,8 @@ export default function DashboardScreen() {
             data!.upcoming_meetings.map((m) => (
               <TouchableOpacity key={m.id} style={styles.meetingItem} onPress={() => router.push(`/(tabs)/projects/${m.id}`)}>
                 <View style={styles.dateBox}>
-                  <Text style={styles.dateDay}>{new Date(m.next_meeting_at).getDate()}</Text>
-                  <Text style={styles.dateMonth}>{new Date(m.next_meeting_at).toLocaleDateString('en-IN', { month: 'short' })}</Text>
+                  <Text style={styles.dateDay}>{istDate(m.next_meeting_at).getUTCDate()}</Text>
+                  <Text style={styles.dateMonth}>{MONTHS_SHORT[istDate(m.next_meeting_at).getUTCMonth()]}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.meetingTitle} numberOfLines={1}>{m.name}</Text>

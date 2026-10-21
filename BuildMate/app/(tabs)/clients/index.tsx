@@ -72,7 +72,7 @@ export default function ClientsScreen() {
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.accent} />}
         contentContainerStyle={filtered.length === 0 ? { flex: 1 } : styles.list}
-        ListEmptyComponent={<EmptyState icon="person-circle-outline" title="No clients found" message="Clients you add appear here." />}
+        ListEmptyComponent={<EmptyState icon="person-circle-outline" title="No customers found" message="Customers you add appear here." />}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.row} onPress={() => router.push(`/(tabs)/clients/${item.id}`)} activeOpacity={0.75}>

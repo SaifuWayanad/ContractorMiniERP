@@ -18,16 +18,30 @@ type MeetingProject = {
   next_meeting_notes: string | null;
 };
 
+const IST_MS = (5 * 60 + 30) * 60 * 1000;
+const MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_L = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS_L = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAYS_S = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function istDate(iso: string): Date {
+  const s = iso.replace(' ', 'T');
+  const d = new Date((!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) ? s + 'Z' : s);
+  return new Date(d.getTime() + IST_MS);
+}
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const ist = istDate(iso);
+  const h = ist.getUTCHours(), m = ist.getUTCMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
 function fmtDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+  const ist = istDate(iso);
+  return `${DAYS_S[ist.getUTCDay()]}, ${String(ist.getUTCDate()).padStart(2,'0')} ${MONTHS_S[ist.getUTCMonth()]} ${ist.getUTCFullYear()}`;
 }
 function sectionKey(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const ist = istDate(iso);
+  return `${DAYS_L[ist.getUTCDay()]}, ${String(ist.getUTCDate()).padStart(2,'0')} ${MONTHS_L[ist.getUTCMonth()]} ${ist.getUTCFullYear()}`;
 }
 
 export default function MeetingsScreen() {

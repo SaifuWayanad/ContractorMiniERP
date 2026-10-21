@@ -102,7 +102,7 @@ function DatePickerField({ label, value, onChange, required }: {
 
 function toLocalISO(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00+05:30`;
 }
 
 function parseApiDate(iso: string | null): Date | null {
@@ -121,9 +121,16 @@ function DateTimePickerField({ label, value, onChange }: {
   const [androidDate, setAndroidDate] = useState<Date>(new Date());
 
   const dateObj = value ? new Date(value) : new Date();
-  const display = value
-    ? new Date(value).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
-    : '';
+  const display = (() => {
+    if (!value) return '';
+    const s = value.replace(' ', 'T');
+    const d = new Date((!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) ? s + 'Z' : s);
+    const ist = new Date(d.getTime() + (5 * 60 + 30) * 60 * 1000);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const h = ist.getUTCHours(), m = ist.getUTCMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    return `${String(ist.getUTCDate()).padStart(2,'0')} ${months[ist.getUTCMonth()]} ${ist.getUTCFullYear()}, ${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`;
+  })();
 
   function handlePress() {
     if (Platform.OS === 'android') {
@@ -345,7 +352,7 @@ export default function ProjectFormScreen() {
   }
 
   async function handleQuickClient() {
-    if (!qName.trim()) { Alert.alert('Required', 'Client name is required.'); return; }
+    if (!qName.trim()) { Alert.alert('Required', 'Customer name is required.'); return; }
 
     setQuickSaving(true);
     try {
@@ -359,7 +366,7 @@ export default function ProjectFormScreen() {
       setClientId(String(res.data.id));
       setQuickOpen(false);
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to create client.');
+      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to create customer.');
     } finally {
       setQuickSaving(false);
     }
@@ -428,15 +435,15 @@ export default function ProjectFormScreen() {
             )}
 
             <SelectPicker
-              label="Client"
+              label="Customer"
               value={clientId}
               options={clients}
               onChange={setClientId}
-              placeholder="Select client…"
+              placeholder="Select customer…"
               searchable
               required
               onAddNew={openQuickClient}
-              addNewLabel="Create new client"
+              addNewLabel="Create new customer"
             />
 
             <Field label="Project Name" required>
@@ -504,13 +511,13 @@ export default function ProjectFormScreen() {
       <Modal visible={quickOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setQuickOpen(false)}>
         <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
           <ScreenHeader
-            title="New Client"
+            title="New Customer"
             onBack={() => setQuickOpen(false)}
-            subtitle="Added to the client list and selected for this project"
+            subtitle="Added to the customer list and selected for this project"
             right={<HeaderSaveButton onPress={handleQuickClient} saving={quickSaving} label="Save" />}
           />
           <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-            <Field label="Client Name" required>
+            <Field label="Customer Name" required>
               <Input value={qName} onChangeText={setQName} placeholder="e.g. Rahul Nair" autoFocus />
             </Field>
             <Field label="Phone">
@@ -520,7 +527,7 @@ export default function ProjectFormScreen() {
               <Input value={qEmail} onChangeText={setQEmail} placeholder="Email address" keyboardType="email-address" autoCapitalize="none" />
             </Field>
             <TouchableOpacity style={s.submitBtn} onPress={handleQuickClient} disabled={quickSaving} activeOpacity={0.8}>
-              {quickSaving ? <ActivityIndicator color={Colors.primary} /> : <Text style={s.submitBtnText}>Create Client</Text>}
+              {quickSaving ? <ActivityIndicator color={Colors.primary} /> : <Text style={s.submitBtnText}>Create Customer</Text>}
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>

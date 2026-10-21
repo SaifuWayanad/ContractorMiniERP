@@ -95,7 +95,7 @@ export default function ClientFormScreen() {
   }, [loadClient, isEdit, isAdmin]);
 
   async function handleSave() {
-    if (!name.trim()) { Alert.alert('Required', 'Client name is required.'); return; }
+    if (!name.trim()) { Alert.alert('Required', 'Customer name is required.'); return; }
     if (isAdmin && !isEdit && !contractorId) { Alert.alert('Required', 'Please select a contractor.'); return; }
 
     setSaving(true);
@@ -111,10 +111,10 @@ export default function ClientFormScreen() {
 
       if (isEdit) {
         await api.put(`/mobile/clients/${id}`, body);
-        Alert.alert('Saved', 'Client updated.', [{ text: 'OK', onPress: () => goBack() }]);
+        Alert.alert('Saved', 'Customer updated.', [{ text: 'OK', onPress: () => goBack() }]);
       } else {
         await api.post('/mobile/clients', body);
-        Alert.alert('Created', 'Client added.', [{ text: 'OK', onPress: () => router.navigate('/(tabs)/clients') }]);
+        Alert.alert('Created', 'Customer added.', [{ text: 'OK', onPress: () => router.navigate('/(tabs)/clients') }]);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Failed to save.';
@@ -129,8 +129,8 @@ export default function ClientFormScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['bottom']}>
       <ScreenHeader
-        title={isEdit ? 'Edit Client' : 'New Client'}
-        subtitle={isEdit ? 'Update client information' : 'Fill in the details below'}
+        title={isEdit ? 'Edit Customer' : 'New Customer'}
+        subtitle={isEdit ? 'Update customer information' : 'Fill in the details below'}
         right={<HeaderSaveButton onPress={handleSave} saving={saving} label={isEdit ? 'Update' : 'Save'} />}
       />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -148,7 +148,7 @@ export default function ClientFormScreen() {
               />
             )}
 
-            <Field label="Client Name" required>
+            <Field label="Customer Name" required>
               <Input value={name} onChangeText={setName} placeholder="e.g. Rajesh Kumar" />
             </Field>
 
@@ -196,7 +196,7 @@ export default function ClientFormScreen() {
             </Field>
 
             <TouchableOpacity style={s.submitBtn} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
-              {saving ? <ActivityIndicator color={Colors.primary} /> : <Text style={s.submitBtnText}>{isEdit ? 'Update Client' : 'Add Client'}</Text>}
+              {saving ? <ActivityIndicator color={Colors.primary} /> : <Text style={s.submitBtnText}>{isEdit ? 'Update Customer' : 'Add Customer'}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>

@@ -63,8 +63,41 @@ function actionColor(action: string) {
   }
 }
 
-function toUTCISO(date: Date): string {
-  return date.toISOString(); // Always UTC — server stores/returns UTC, mobile converts for display
+// IST = UTC + 5:30. Manual offset avoids Intl.DateTimeFormat timezone issues on Android/Hermes.
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function toIST(d: Date): Date {
+  return new Date(d.getTime() + IST_OFFSET_MS);
+}
+function istFmt(d: Date, showTime: boolean): string {
+  const ist = toIST(d);
+  const day = String(ist.getUTCDate()).padStart(2, '0');
+  const mon = MONTHS[ist.getUTCMonth()];
+  const yr = ist.getUTCFullYear();
+  if (!showTime) return `${day} ${mon} ${yr}`;
+  const h = ist.getUTCHours(), m = ist.getUTCMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${day} ${mon} ${yr} · ${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function istHour(d: Date): number { return toIST(d).getUTCHours(); }
+function istMinute(d: Date): number { return toIST(d).getUTCMinutes(); }
+function istDay(d: Date): string { return String(toIST(d).getUTCDate()); }
+function istMonYr(d: Date): string {
+  const ist = toIST(d);
+  return `${MONTHS[ist.getUTCMonth()]} ${String(ist.getUTCFullYear()).slice(2)}`;
+}
+function istTime(d: Date): string {
+  const h = istHour(d), m = istMinute(d);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+// Build an IST-offset ISO string from a local Date (device timezone = IST)
+function toISTISO(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00+05:30`;
 }
 
 function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt: string) => void }) {
@@ -73,9 +106,7 @@ function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt
   const [androidStep, setAndroidStep] = useState<'date' | 'time' | null>(null);
   const [androidDate, setAndroidDate] = useState<Date>(new Date());
 
-  const display = value
-    ? new Date(value).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })
-    : '';
+  const display = value ? (() => { const d = parseDate(value); return d ? istFmt(d, true) : ''; })() : '';
 
   function handlePress() {
     if (Platform.OS === 'android') {
@@ -96,9 +127,12 @@ function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt
   function onAndroidTime(_: any, sel?: Date) {
     setAndroidStep(null);
     if (!sel) return;
-    const combined = new Date(androidDate);
-    combined.setHours(sel.getHours(), sel.getMinutes(), 0, 0);
-    onChange(toUTCISO(combined));
+    // Combine date from androidDate with time from sel using LOCAL (device) values
+    const combined = new Date(
+      androidDate.getFullYear(), androidDate.getMonth(), androidDate.getDate(),
+      sel.getHours(), sel.getMinutes(), 0, 0,
+    );
+    onChange(toISTISO(combined));
   }
 
   return (
@@ -137,7 +171,7 @@ function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt
             <TouchableOpacity onPress={() => setIosOpen(false)} style={styles.iosInlineBtn}>
               <Text style={styles.iosInlineCancel}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => { onChange(toUTCISO(iosPending)); setIosOpen(false); }} style={styles.iosInlineBtn}>
+            <TouchableOpacity onPress={() => { onChange(toISTISO(iosPending)); setIosOpen(false); }} style={styles.iosInlineBtn}>
               <Text style={styles.iosInlineDone}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -174,16 +208,13 @@ function parseDate(iso: string | null): Date | null {
   if (!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) return new Date(s + 'Z');
   return new Date(s);
 }
-function fmt(iso: string | null) {
+function fmt(iso: string | null): string | null {
   const d = parseDate(iso);
-  if (!d) return null;
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d ? istFmt(d, false) : null;
 }
-function fmtDT(iso: string | null) {
+function fmtDT(iso: string | null): string | null {
   const d = parseDate(iso);
-  if (!d) return null;
-  const tz = { timeZone: 'Asia/Kolkata' };
-  return `${d.toLocaleDateString('en-IN', { ...tz, day: '2-digit', month: 'short', year: 'numeric' })} · ${d.toLocaleTimeString('en-IN', { ...tz, hour: '2-digit', minute: '2-digit', hour12: true })}`;
+  return d ? istFmt(d, true) : null;
 }
 
 export default function ProjectDetailScreen() {
@@ -213,6 +244,11 @@ export default function ProjectDetailScreen() {
   const [dealers, setDealers] = useState<DealerItem[]>([]);
   const [dealerSearch, setDealerSearch] = useState('');
   const [contactSaving, setContactSaving] = useState(false);
+  const [showCreateContact, setShowCreateContact] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
+  const [newContactCity, setNewContactCity] = useState('');
+  const [creatingContact, setCreatingContact] = useState(false);
 
   // Activity
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -331,11 +367,35 @@ export default function ProjectDetailScreen() {
 
   async function openContactModal() {
     setDealerSearch('');
+    setShowCreateContact(false);
+    setNewContactName(''); setNewContactPhone(''); setNewContactCity('');
     try {
       const res = await api.get('/mobile/dealers');
       setDealers(res.data ?? []);
     } catch { /* ignore */ }
     setContactModal(true);
+  }
+
+  async function handleCreateAndAssign() {
+    if (!newContactName.trim()) { Alert.alert('Required', 'Contact name is required.'); return; }
+    setCreatingContact(true);
+    try {
+      const body: Record<string, string> = { name: newContactName.trim() };
+      if (newContactPhone.trim()) body.phone = newContactPhone.trim();
+      if (newContactCity.trim()) body.city = newContactCity.trim();
+      const createRes = await api.post('/mobile/dealers', body);
+      const newId = createRes.data?.id;
+      if (!newId) throw new Error('No ID returned');
+      await api.post(`/mobile/projects/${id}/contacts`, { dealer_id: newId });
+      setContactModal(false);
+      setShowCreateContact(false);
+      setNewContactName(''); setNewContactPhone(''); setNewContactCity('');
+      load();
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to create contact.');
+    } finally {
+      setCreatingContact(false);
+    }
   }
 
   async function handleAddContact(dealerId: number) {
@@ -484,7 +544,7 @@ export default function ProjectDetailScreen() {
 
           {/* Details */}
           <Card title="Project Details">
-            <Row label="Client" value={project.client.name} />
+            <Row label="Customer" value={project.client.name} />
             <Row label="Company" value={project.client.company} />
             <Row label="Contact" value={project.client.contact_person} />
             <Row label="Phone" value={project.client.phone} phone />
@@ -492,7 +552,6 @@ export default function ProjectDetailScreen() {
             <Row label="Start Date" value={fmt(project.start_date)} />
             <Row label="Expected End" value={fmt(project.expected_end_date)} />
             {project.budget && <Row label="Budget" value={`₹${Number(project.budget).toLocaleString('en-IN')}`} />}
-            <Row label="Dealer" value={project.dealer?.name ?? null} />
             {project.description && <Row label="Description" value={project.description} />}
             {project.notes && <Row label="Notes" value={project.notes} />}
           </Card>
@@ -609,10 +668,10 @@ export default function ProjectDetailScreen() {
               <View style={styles.upcomingRow}>
                 <View style={[styles.historyDateBox, { borderColor: Colors.accent + '40', backgroundColor: Colors.accent + '10' }]}>
                   <Text style={[styles.historyDay, { color: Colors.accent }]}>
-                    {parseDate(project.next_meeting_at)?.toLocaleDateString('en-IN', { day: 'numeric', timeZone: 'Asia/Kolkata' })}
+                    {(() => { const d = parseDate(project.next_meeting_at); return d ? istDay(d) : ''; })()}
                   </Text>
                   <Text style={[styles.historyMonth, { color: Colors.accent }]}>
-                    {parseDate(project.next_meeting_at)?.toLocaleDateString('en-IN', { month: 'short', year: '2-digit', timeZone: 'Asia/Kolkata' })}
+                    {(() => { const d = parseDate(project.next_meeting_at); return d ? istMonYr(d) : ''; })()}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -620,7 +679,7 @@ export default function ProjectDetailScreen() {
                     <View style={styles.upcomingBadge}><Text style={styles.upcomingBadgeText}>UPCOMING</Text></View>
                   </View>
                   <Text style={styles.historyTime}>
-                    {parseDate(project.next_meeting_at)?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
+                    {(() => { const d = parseDate(project.next_meeting_at); return d ? istTime(d) : ''; })()}
                   </Text>
                   {project.next_meeting_notes ? <Text style={[styles.historyPurpose, { marginTop: 1 }]} numberOfLines={1}>{project.next_meeting_notes}</Text> : null}
                 </View>
@@ -644,16 +703,16 @@ export default function ProjectDetailScreen() {
                 <View key={m.id} style={[styles.historyRow, (i > 0 || project.next_meeting_at) && styles.locBorder]}>
                   <View style={styles.historyDateBox}>
                     <Text style={styles.historyDay}>
-                      {parseDate(m.meeting_at)?.toLocaleDateString('en-IN', { day: 'numeric', timeZone: 'Asia/Kolkata' })}
+                      {(() => { const d = parseDate(m.meeting_at); return d ? istDay(d) : ''; })()}
                     </Text>
                     <Text style={styles.historyMonth}>
-                      {parseDate(m.meeting_at)?.toLocaleDateString('en-IN', { month: 'short', year: '2-digit', timeZone: 'Asia/Kolkata' })}
+                      {(() => { const d = parseDate(m.meeting_at); return d ? istMonYr(d) : ''; })()}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.historyPurpose}>{m.purpose}</Text>
                     <Text style={styles.historyTime}>
-                      {parseDate(m.meeting_at)?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })}
+                      {(() => { const d = parseDate(m.meeting_at); return d ? istTime(d) : ''; })()}
                       {m.created_by ? ` · ${m.created_by}` : ''}
                     </Text>
                   </View>
@@ -677,7 +736,7 @@ export default function ProjectDetailScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.activityDesc}>{a.description}</Text>
                     <Text style={styles.activityMeta}>
-                      {a.user ? `${a.user} · ` : ''}{new Date(a.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                      {a.user ? `${a.user} · ` : ''}{(() => { const d = parseDate(a.created_at); return d ? istFmt(d, true) : ''; })()}
                     </Text>
                   </View>
                 </View>
@@ -748,49 +807,117 @@ export default function ProjectDetailScreen() {
       {/* Assign Contact Modal */}
       <Modal visible={contactModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setContactModal(false)}>
         <RNSafeAreaView style={styles.modal}>
-          <ModalHeader title="Assign Contact" onBack={() => setContactModal(false)} />
-          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
-            <View style={styles.searchWrap}>
-              <Ionicons name="search-outline" size={16} color={Colors.textMuted} style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.searchInput}
-                value={dealerSearch}
-                onChangeText={setDealerSearch}
-                placeholder="Search contacts…"
-                placeholderTextColor={Colors.textMuted}
-              />
+          <ModalHeader
+            title="Assign Contact"
+            onBack={() => setContactModal(false)}
+            right={
+              <TouchableOpacity
+                onPress={() => setShowCreateContact((v) => !v)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                <Ionicons name={showCreateContact ? 'chevron-up' : 'add-circle-outline'} size={20} color={Colors.accent} />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.accent }}>
+                  {showCreateContact ? 'Cancel' : 'New'}
+                </Text>
+              </TouchableOpacity>
+            }
+          />
+
+          {/* Inline Create New Contact form */}
+          {showCreateContact && (
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <View style={styles.createContactForm}>
+                <Text style={styles.createContactTitle}>New Contact</Text>
+                <TextInput
+                  style={styles.createContactInput}
+                  value={newContactName}
+                  onChangeText={setNewContactName}
+                  placeholder="Full name *"
+                  placeholderTextColor={Colors.textMuted}
+                  autoFocus
+                />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <TextInput
+                    style={[styles.createContactInput, { flex: 1, marginTop: 0 }]}
+                    value={newContactPhone}
+                    onChangeText={setNewContactPhone}
+                    placeholder="Phone"
+                    placeholderTextColor={Colors.textMuted}
+                    keyboardType="phone-pad"
+                  />
+                  <TextInput
+                    style={[styles.createContactInput, { flex: 1, marginTop: 0 }]}
+                    value={newContactCity}
+                    onChangeText={setNewContactCity}
+                    placeholder="City"
+                    placeholderTextColor={Colors.textMuted}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={styles.createContactBtn}
+                  onPress={handleCreateAndAssign}
+                  disabled={creatingContact}
+                  activeOpacity={0.8}
+                >
+                  {creatingContact
+                    ? <ActivityIndicator color={Colors.primary} />
+                    : <Text style={styles.createContactBtnText}>Create &amp; Assign</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
+          )}
+
+          {!showCreateContact && (
+            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+              <View style={styles.searchWrap}>
+                <Ionicons name="search-outline" size={16} color={Colors.textMuted} style={{ marginRight: 8 }} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={dealerSearch}
+                  onChangeText={setDealerSearch}
+                  placeholder="Search contacts…"
+                  placeholderTextColor={Colors.textMuted}
+                />
+              </View>
             </View>
-          </View>
-          <ScrollView keyboardShouldPersistTaps="handled">
-            {dealers
-              .filter((d) => !dealerSearch || d.name.toLowerCase().includes(dealerSearch.toLowerCase()))
-              .map((d) => {
-                const linked = project?.dealers.some((pd) => pd.id === d.id);
-                return (
-                  <TouchableOpacity
-                    key={d.id}
-                    style={[styles.dealerPickRow, linked && styles.dealerPickRowActive]}
-                    onPress={() => !linked && handleAddContact(d.id)}
-                    disabled={contactSaving || linked}
-                  >
-                    <View style={styles.dealerPickAvatar}>
-                      <Text style={styles.dealerPickInitials}>
-                        {d.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.dealerPickName}>{d.name}</Text>
-                      {d.city ? <Text style={styles.dealerPickMeta}>{d.city}</Text> : null}
-                    </View>
-                    {linked
-                      ? <Ionicons name="checkmark-circle" size={20} color={Colors.accent} />
-                      : <Ionicons name="add-circle-outline" size={20} color={Colors.textMuted} />
-                    }
-                  </TouchableOpacity>
-                );
-              })}
-            {contactSaving && <ActivityIndicator style={{ paddingVertical: 16 }} color={Colors.accent} />}
-          </ScrollView>
+          )}
+
+          {!showCreateContact && (
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {dealers
+                .filter((d) => !dealerSearch || d.name.toLowerCase().includes(dealerSearch.toLowerCase()))
+                .map((d) => {
+                  const linked = project?.dealers.some((pd) => pd.id === d.id);
+                  return (
+                    <TouchableOpacity
+                      key={d.id}
+                      style={[styles.dealerPickRow, linked && styles.dealerPickRowActive]}
+                      onPress={() => !linked && handleAddContact(d.id)}
+                      disabled={contactSaving || linked}
+                    >
+                      <View style={styles.dealerPickAvatar}>
+                        <Text style={styles.dealerPickInitials}>
+                          {d.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.dealerPickName}>{d.name}</Text>
+                        {d.city ? <Text style={styles.dealerPickMeta}>{d.city}</Text> : null}
+                      </View>
+                      {linked
+                        ? <Ionicons name="checkmark-circle" size={20} color={Colors.accent} />
+                        : <Ionicons name="add-circle-outline" size={20} color={Colors.textMuted} />
+                      }
+                    </TouchableOpacity>
+                  );
+                })}
+              {dealers.length === 0 && (
+                <Text style={[styles.empty, { paddingHorizontal: 16 }]}>No contacts yet. Tap <Text style={{ fontWeight: '700', color: Colors.accent }}>New</Text> to create one.</Text>
+              )}
+              {contactSaving && <ActivityIndicator style={{ paddingVertical: 16 }} color={Colors.accent} />}
+            </ScrollView>
+          )}
         </RNSafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -925,6 +1052,21 @@ const styles = StyleSheet.create({
   dealerPickInitials: { fontSize: 14, fontWeight: '800', color: Colors.info },
   dealerPickName: { fontSize: 14, fontWeight: '600', color: Colors.text },
   dealerPickMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  createContactForm: {
+    margin: 16, padding: 16, backgroundColor: Colors.white,
+    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.accent + '40',
+  },
+  createContactTitle: { fontSize: 15, fontWeight: '700', color: Colors.text, marginBottom: 12 },
+  createContactInput: {
+    borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10,
+    backgroundColor: Colors.background, paddingHorizontal: 12, height: 46,
+    fontSize: 15, color: Colors.text, marginTop: 8,
+  },
+  createContactBtn: {
+    backgroundColor: Colors.accent, borderRadius: 10, height: 46,
+    alignItems: 'center', justifyContent: 'center', marginTop: 12,
+  },
+  createContactBtnText: { fontSize: 15, fontWeight: '800', color: Colors.primary },
 });
 
 const dl = StyleSheet.create({
