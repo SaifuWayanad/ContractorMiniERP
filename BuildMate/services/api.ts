@@ -2,7 +2,8 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // Set EXPO_PUBLIC_API_URL to point the app at a local server (e.g. http://10.0.2.2:8000 from the Android emulator).
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://buildmate.tech';
+// export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://buildmate.tech';
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,

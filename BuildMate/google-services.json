@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "501637083999",
+    "project_id": "buildmate-7243f",
+    "storage_bucket": "buildmate-7243f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:501637083999:android:4f0feffd993d2ad2d87cea",
+        "android_client_info": {
+          "package_name": "com.buildmate.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5oivERGCNOHXMbjL-0JNphdaEe6sH0QA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

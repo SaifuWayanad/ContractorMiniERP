@@ -23,7 +23,8 @@
       },
       "package": "com.buildmate.app",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 2
+      "versionCode": 2,
+      "usesCleartextTraffic": true
     },
     "web": {
       "bundler": "metro",
