@@ -108,7 +108,9 @@ function toLocalISO(date: Date): string {
 function parseApiDate(iso: string | null): Date | null {
   if (!iso) return null;
   const s = iso.replace(' ', 'T');
-  if (!s.match(/Z$/) && !s.match(/[+-]\d{2}:\d{2}$/)) return new Date(s + 'Z');
+  if (!s.match(/Z$/) && !s.match(/[+-]\d{2}:\d{2}$/)) {
+    return new Date(s.includes('T') ? s + 'Z' : s + 'T00:00:00Z');
+  }
   return new Date(s);
 }
 
@@ -124,7 +126,8 @@ function DateTimePickerField({ label, value, onChange }: {
   const display = (() => {
     if (!value) return '';
     const s = value.replace(' ', 'T');
-    const d = new Date((!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) ? s + 'Z' : s);
+    const bare = !s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/);
+    const d = new Date(bare ? (s.includes('T') ? s + 'Z' : s + 'T00:00:00Z') : s);
     const ist = new Date(d.getTime() + (5 * 60 + 30) * 60 * 1000);
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const h = ist.getUTCHours(), m = ist.getUTCMinutes();
@@ -397,10 +400,11 @@ export default function ProjectFormScreen() {
 
       if (isEdit) {
         await api.put(`/mobile/projects/${id}`, body);
-        Alert.alert('Saved', 'Project updated.', [{ text: 'OK', onPress: () => goBack() }]);
+        Alert.alert('Saved', 'Project updated.', [{ text: 'OK', onPress: () => router.replace(`/(tabs)/projects/${id}`) }]);
       } else {
-        await api.post('/mobile/projects', body);
-        Alert.alert('Created', `"${name.trim()}" has been created.`, [{ text: 'OK', onPress: () => router.navigate('/(tabs)/projects') }]);
+        const res = await api.post('/mobile/projects', body);
+        const newId = res.data?.id;
+        Alert.alert('Created', `"${name.trim()}" has been created.`, [{ text: 'OK', onPress: () => router.replace(`/(tabs)/projects/${newId}`) }]);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Failed to save.';

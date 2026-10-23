@@ -5,7 +5,7 @@ import {
   Alert, KeyboardAvoidingView, Platform, SafeAreaView as RNSafeAreaView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Card } from '@/components/ui/Card';
@@ -205,7 +205,10 @@ function Row({ label, value, phone, email }: { label: string; value: string | nu
 function parseDate(iso: string | null): Date | null {
   if (!iso) return null;
   const s = iso.replace(' ', 'T');
-  if (!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) return new Date(s + 'Z');
+  if (!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) {
+    // date-only strings (e.g. "2026-10-23") need T00:00:00Z, not just "Z"
+    return new Date(s.includes('T') ? s + 'Z' : s + 'T00:00:00Z');
+  }
   return new Date(s);
 }
 function fmt(iso: string | null): string | null {
@@ -287,6 +290,8 @@ export default function ProjectDetailScreen() {
       .catch(() => {})
       .finally(() => setActivityLoading(false));
   }, [load, id]);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   async function handleLogMeeting() {
     if (!logDate.trim() || !logPurpose.trim()) {

@@ -187,7 +187,10 @@ export default function WorkFormScreen() {
         Alert.alert('Saved', 'Work updated.', [{ text: 'OK', onPress: () => goBack() }]);
       } else {
         await api.post('/mobile/works', body);
-        Alert.alert('Created', 'Work added.', [{ text: 'OK', onPress: () => router.navigate('/(tabs)/works') }]);
+        Alert.alert('Created', 'Work added.', [{ text: 'OK', onPress: () => {
+          if (projectId) router.replace(`/(tabs)/projects/${projectId}`);
+          else router.navigate('/(tabs)/works');
+        }}]);
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Failed to save.';
