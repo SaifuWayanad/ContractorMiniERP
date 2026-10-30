@@ -43,7 +43,6 @@
                 <span class="avatar">{{ $user->initials() }}</span>
                 <span class="user-menu-text d-none d-md-flex">
                     <span class="fw-semibold">{{ $user->name }}</span>
-                    <span class="small text-muted">{{ $user->role?->name }}</span>
                 </span>
                 <i class="bi bi-chevron-down small text-muted d-none d-md-inline"></i>
             </button>

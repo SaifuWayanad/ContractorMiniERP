@@ -26,6 +26,6 @@ class AccountPasswordController extends Controller
         $user->forceFill(['password' => $validated['password']])->save();
         $activity->record('updated', "{$user->name} changed their password", user: $user);
 
-        return back()->with('toast', 'Your password has been changed.');
+        return redirect($request->user()->homeRoute())->with('toast', 'Your password has been changed.');
     }
 }

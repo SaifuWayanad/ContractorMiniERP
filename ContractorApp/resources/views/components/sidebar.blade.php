@@ -55,9 +55,6 @@
     <a class="sidebar-brand" href="{{ $user->homeRoute() }}">
         <i class="bi bi-cone-striped" aria-hidden="true"></i>
         <span>{{ config('app.name') }}</span>
-        @if ($user->isAdmin())
-            <span class="sidebar-portal-tag">Admin</span>
-        @endif
     </a>
 
     <nav class="sidebar-nav">
