@@ -25,7 +25,6 @@ class ProjectRequest extends FormRequest
 
         return [
             'client_id' => ['required', 'integer', Rule::exists('clients', 'id')->whereNull('deleted_at')],
-            'dealer_id' => ['nullable', 'integer', Rule::exists('dealers', 'id')->whereNull('deleted_at')],
             'name' => ['required', 'string', 'max:150'],
             'project_number' => [
                 'nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9\-\/_.]+$/',
@@ -43,7 +42,6 @@ class ProjectRequest extends FormRequest
             'budget' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
             'brand_preferred' => ['nullable', 'string', 'max:80'],
             'expected_qty' => ['nullable', 'integer', 'min:0', 'max:10000000'],
-            'expected_maturity_date' => ['nullable', 'date'],
             'specification_details' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:5000'],
         ];

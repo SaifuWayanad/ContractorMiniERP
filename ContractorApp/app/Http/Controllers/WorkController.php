@@ -6,6 +6,7 @@ use App\Enums\UserStatus;
 use App\Enums\WorkPriority;
 use App\Enums\WorkStatus;
 use App\Http\Requests\WorkRequest;
+use App\Models\Client;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\Work;
@@ -31,17 +32,19 @@ class WorkController extends Controller
         $status = $request->string('status')->value();
         $due = $request->string('due')->value();
         $filters = [
-            'search' => $request->string('search')->trim()->value(),
+            'search'     => $request->string('search')->trim()->value(),
+            'client_id'  => $request->integer('client_id') ?: null,
             'project_id' => $request->integer('project_id') ?: null,
-            'status' => $status === 'open' ? 'open' : WorkStatus::tryFrom($status)?->value,
-            'priority' => WorkPriority::tryFrom($request->string('priority')->value())?->value,
-            'due' => array_key_exists($due, self::DUE_FILTERS) ? $due : null,
+            'status'     => $status === 'open' ? 'open' : WorkStatus::tryFrom($status)?->value,
+            'priority'   => WorkPriority::tryFrom($request->string('priority')->value())?->value,
+            'due'        => array_key_exists($due, self::DUE_FILTERS) ? $due : null,
         ];
         $today = today();
 
         $works = Work::query()
             ->with(['project:id,name', 'assignee:id,name'])
             ->when($filters['search'] !== '', fn (Builder $query) => $query->search($filters['search']))
+            ->when($filters['client_id'], fn (Builder $query, int $cid) => $query->where('client_id', $cid))
             ->when($filters['project_id'], fn (Builder $query, int $projectId) => $query->where('project_id', $projectId))
             ->when($filters['status'] === 'open', fn (Builder $query) => $query->open())
             ->when($filters['status'] && $filters['status'] !== 'open', fn (Builder $query) => $query->where('status', $filters['status']))
@@ -60,11 +63,17 @@ class WorkController extends Controller
             ->paginate($this->perPage())
             ->withQueryString();
 
+        $clients  = Client::orderBy('name')->pluck('name', 'id');
+        $projects = $filters['client_id']
+            ? Project::where('client_id', $filters['client_id'])->orderBy('name')->pluck('name', 'id')
+            : Project::orderBy('name')->pluck('name', 'id');
+
         return view('works.index', [
-            'works' => $works,
-            'filters' => $filters,
+            'works'      => $works,
+            'filters'    => $filters,
             'hasFilters' => collect($filters)->except('search')->filter()->isNotEmpty() || $filters['search'] !== '',
-            'projects' => Project::orderBy('name')->pluck('name', 'id'),
+            'clients'    => $clients,
+            'projects'   => $projects,
         ]);
     }
 
@@ -82,9 +91,13 @@ class WorkController extends Controller
     {
         $this->authorize('create', Work::class);
 
-        $work = new Work($request->safe()->except(['project_id', 'assigned_to']));
+        $work = new Work($request->safe()->except(['project_id', 'assigned_to', 'from', 'from_project_id']));
         $this->assignRelations($work, $request);
         $work->save();
+
+        if ($request->input('from') === 'project') {
+            return to_route('projects.show', $work->project_id)->with('toast', "Work \"{$work->title}\" created.")->withFragment('works');
+        }
 
         return to_route('works.show', $work)->with('toast', "Work \"{$work->title}\" created.");
     }
@@ -107,9 +120,13 @@ class WorkController extends Controller
     {
         $this->authorize('update', $work);
 
-        $work->fill($request->safe()->except(['project_id', 'assigned_to']));
+        $work->fill($request->safe()->except(['project_id', 'assigned_to', 'from', 'from_project_id']));
         $this->assignRelations($work, $request);
         $work->save();
+
+        if ($request->input('from') === 'project') {
+            return to_route('projects.show', $work->project_id)->with('toast', "Work \"{$work->title}\" updated.")->withFragment('works');
+        }
 
         return to_route('works.show', $work)->with('toast', "Work \"{$work->title}\" updated.");
     }
@@ -123,16 +140,12 @@ class WorkController extends Controller
         return to_route('works.index')->with('toast', "Work \"{$work->title}\" deleted.");
     }
 
-    /**
-     * Set project, client (always the project's client) and assignee from validated IDs.
-     */
     private function assignRelations(Work $work, WorkRequest $request): void
     {
         $project = Project::findOrFail($request->integer('project_id'));
 
         $work->project_id = $project->id;
-        $work->client_id = $project->client_id;
-        $work->assigned_to = $request->integer('assigned_to') ?: null;
+        $work->client_id  = $project->client_id;
     }
 
     /**

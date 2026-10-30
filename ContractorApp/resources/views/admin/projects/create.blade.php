@@ -62,28 +62,6 @@
 
             <x-form.input name="name" label="Project Name" :required="true" autocomplete="off" />
 
-            {{-- Contact (dealer) --}}
-            <div class="col-md-6 col-xl-4">
-                <label for="dealer_id" class="form-label">Contact</label>
-                <div class="input-group">
-                    <select id="dealer_id" name="dealer_id" class="form-select{{ $errors->has('dealer_id') ? ' is-invalid' : '' }}" @if(! $selectedContractorId) disabled @endif>
-                        @if (! $selectedContractorId)
-                            <option value="">Select a contractor first</option>
-                        @else
-                            <option value="">Nothing selected</option>
-                            @foreach ($dealers as $id => $label)
-                                <option value="{{ $id }}" @selected(old('dealer_id') == $id)>{{ $label }}</option>
-                            @endforeach
-                        @endif
-                    </select>
-                    @if ($selectedContractorId)
-                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#adminQuickCreateContact" title="Quick add contact">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
-                    @endif
-                </div>
-            </div>
-
             <x-form.select name="status" label="Status" :options="App\Enums\ProjectStatus::options()" placeholder="Select status" />
             <x-form.input name="start_date" type="date" label="Start Date" />
             <x-form.textarea name="description" label="Description" rows="3" col="col-md-12 col-xl-8" />
@@ -148,35 +126,6 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary btn-sm" id="qcAdminCustomerSave">Create &amp; Select</button>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
-
-{{-- Quick Create Contact modal --}}
-@if ($selectedContractorId)
-<div class="modal fade" id="adminQuickCreateContact" tabindex="-1" aria-labelledby="adminQCContactLabel" aria-hidden="true">
-    <div class="modal-dialog modal-sm">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="adminQCContactLabel">New Contact</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="qcAdminContactName" class="form-label">Contact Name <span class="req">*</span></label>
-                    <input type="text" class="form-control" id="qcAdminContactName" maxlength="120" autocomplete="off" />
-                    <div class="invalid-feedback" id="qcAdminContactError"></div>
-                </div>
-                <div class="mb-3">
-                    <label for="qcAdminContactPhone" class="form-label">Phone</label>
-                    <input type="tel" class="form-control" id="qcAdminContactPhone" maxlength="20" autocomplete="off" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary btn-sm" id="qcAdminContactSave">Create &amp; Select</button>
             </div>
         </div>
     </div>
@@ -318,50 +267,6 @@ document.getElementById('contractor_id_select')?.addEventListener('change', func
 })();
 
 @if ($selectedContractorId)
-/* Contact (dealer) quick-create modal */
-(function () {
-    var modalEl = document.getElementById('adminQuickCreateContact');
-    if (!modalEl) return;
-    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    var nameInput = document.getElementById('qcAdminContactName');
-    var phoneInput = document.getElementById('qcAdminContactPhone');
-    var errorEl = document.getElementById('qcAdminContactError');
-    var saveBtn = document.getElementById('qcAdminContactSave');
-    var select = document.getElementById('dealer_id');
-
-    modalEl.addEventListener('hidden.bs.modal', function () {
-        nameInput.value = ''; phoneInput.value = '';
-        nameInput.classList.remove('is-invalid'); errorEl.textContent = '';
-    });
-
-    saveBtn.addEventListener('click', async function () {
-        nameInput.classList.remove('is-invalid'); errorEl.textContent = '';
-        var name = nameInput.value.trim();
-        if (!name) { nameInput.classList.add('is-invalid'); errorEl.textContent = 'Name is required.'; return; }
-        saveBtn.disabled = true;
-        try {
-            var body = { contractor_id: contractorId, name: name };
-            if (phoneInput.value.trim()) body.phone = phoneInput.value.trim();
-            var res = await fetch('{{ route('admin.projects.quick-dealer') }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            var data = await res.json();
-            if (!res.ok) {
-                var msg = data.errors ? Object.values(data.errors)[0][0] : 'Failed to create.';
-                nameInput.classList.add('is-invalid'); errorEl.textContent = msg; return;
-            }
-            select.disabled = false;
-            var opt = new Option(data.name, data.id, true, true);
-            select.add(opt);
-            modal.hide();
-        } catch (e) {
-            nameInput.classList.add('is-invalid'); errorEl.textContent = 'Something went wrong. Please try again.';
-        } finally { saveBtn.disabled = false; }
-    });
-})();
-
 /* Customer quick-create modal */
 (function () {
     var modalEl = document.getElementById('adminQuickCreateCustomer');

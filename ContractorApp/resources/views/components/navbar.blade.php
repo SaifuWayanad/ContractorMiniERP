@@ -2,10 +2,9 @@
     $user = auth()->user();
     $quickActions = $user->isContractorUser()
         ? array_filter([
-            $user->can('create', App\Models\Client::class) ? ['Client', 'bi-person-plus', route('clients.create')] : null,
+            $user->can('create', App\Models\Client::class) ? ['Customer', 'bi-person-plus', route('clients.create')] : null,
             $user->can('create', App\Models\Project::class) ? ['Project', 'bi-building-add', route('projects.create')] : null,
-            $user->can('create', App\Models\ProjectLocation::class) ? ['Location', 'bi-geo-alt', route('locations.create')] : null,
-            $user->can('create', App\Models\Work::class) ? ['Work', 'bi-list-check', route('works.create')] : null,
+            $user->can('create', App\Models\Visit::class) ? ['Visit', 'bi-calendar-plus', route('visits.create')] : null,
         ])
         : [];
     $searchRoute = $user->isAdmin()

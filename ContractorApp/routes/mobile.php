@@ -8,7 +8,10 @@ use App\Http\Controllers\Mobile\MobileAuthController;
 use App\Http\Controllers\Mobile\MobileClientController;
 use App\Http\Controllers\Mobile\MobileContractorController;
 use App\Http\Controllers\Mobile\MobileDashboardController;
-use App\Http\Controllers\Mobile\MobileDealerController;
+use App\Http\Controllers\Mobile\MobileExpenseController;
+use App\Http\Controllers\Mobile\MobileProductController;
+use App\Http\Controllers\Mobile\MobileProjectPaymentController;
+use App\Http\Controllers\Mobile\MobilePurchaseController;
 use App\Http\Controllers\Mobile\MobileWorkTypeController;
 use App\Http\Controllers\Mobile\MobileProfileController;
 use App\Http\Controllers\Mobile\MobileProjectController;
@@ -48,9 +51,6 @@ Route::prefix('mobile')->group(function (): void {
         Route::post('projects/{project}/meetings', [MobileProjectController::class, 'storeMeeting']);
         Route::delete('projects/{project}/meetings/{meeting}', [MobileProjectController::class, 'destroyMeeting']);
         Route::get('projects/{project}/activity', [MobileProjectController::class, 'activity']);
-        Route::post('projects/{project}/contacts', [MobileProjectController::class, 'addContact']);
-        Route::delete('projects/{project}/contacts', [MobileProjectController::class, 'removeContact']);
-
         // Works
         Route::get('works', [MobileWorkController::class, 'index']);
         Route::post('works', [MobileWorkController::class, 'store']);
@@ -70,12 +70,29 @@ Route::prefix('mobile')->group(function (): void {
         Route::put('work-types/{workType}', [MobileWorkTypeController::class, 'update']);
         Route::delete('work-types/{workType}', [MobileWorkTypeController::class, 'destroy']);
 
-        // Dealers (Contacts)
-        Route::get('dealers', [MobileDealerController::class, 'index']);
-        Route::post('dealers', [MobileDealerController::class, 'store']);
-        Route::get('dealers/{dealer}', [MobileDealerController::class, 'show']);
-        Route::put('dealers/{dealer}', [MobileDealerController::class, 'update']);
-        Route::delete('dealers/{dealer}', [MobileDealerController::class, 'destroy']);
+        // Products
+        Route::get('products', [MobileProductController::class, 'index']);
+        Route::post('products', [MobileProductController::class, 'store']);
+        Route::put('products/{product}', [MobileProductController::class, 'update']);
+        Route::delete('products/{product}', [MobileProductController::class, 'destroy']);
+
+        // Purchases
+        Route::get('purchases', [MobilePurchaseController::class, 'index']);
+        Route::post('purchases', [MobilePurchaseController::class, 'store']);
+        Route::put('purchases/{purchase}', [MobilePurchaseController::class, 'update']);
+        Route::delete('purchases/{purchase}', [MobilePurchaseController::class, 'destroy']);
+
+        // Expenses
+        Route::get('expenses', [MobileExpenseController::class, 'index']);
+        Route::post('expenses', [MobileExpenseController::class, 'store']);
+        Route::put('expenses/{expense}', [MobileExpenseController::class, 'update']);
+        Route::delete('expenses/{expense}', [MobileExpenseController::class, 'destroy']);
+
+        // Payments received
+        Route::get('payments', [MobileProjectPaymentController::class, 'index']);
+        Route::post('payments', [MobileProjectPaymentController::class, 'store']);
+        Route::put('payments/{payment}', [MobileProjectPaymentController::class, 'update']);
+        Route::delete('payments/{payment}', [MobileProjectPaymentController::class, 'destroy']);
 
         // Meetings (upcoming)
         Route::get('meetings', [MobileProjectController::class, 'meetings']);

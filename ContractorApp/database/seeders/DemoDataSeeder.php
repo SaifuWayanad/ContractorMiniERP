@@ -11,7 +11,6 @@ use App\Enums\WorkStatus;
 use App\Models\ActivityLog;
 use App\Models\Client;
 use App\Models\Contractor;
-use App\Models\Dealer;
 use App\Models\Project;
 use App\Models\ProjectLocation;
 use App\Models\Role;
@@ -39,14 +38,13 @@ class DemoDataSeeder extends Seeder
             ],
             owner: ['John Mathew', 'john@buildright.test'],
             staff: ['Anu Joseph', 'anu@buildright.test'],
-            dealers: [['Sri Balaji Traders', 'Kochi'], ['Malabar Building Materials', 'Kozhikode']],
             clients: [
                 [
                     'client' => ['name' => 'Thomas Varghese', 'company' => 'Green Valley Developers', 'contact_person' => 'Thomas Varghese', 'phone' => '9847012345', 'email' => 'thomas@greenvalley.test', 'city' => 'Kakkanad'],
                     'projects' => [
                         [
                             'project' => ['name' => 'Green Valley Villas', 'type_of_work' => 'Residential – Villas', 'status' => ProjectStatus::Active, 'budget' => 32000000, 'brand_preferred' => 'UltraTech', 'expected_qty' => 4500, 'specification_details' => 'OPC 53 grade for slabs, PPC for plastering', 'description' => '12 villas with shared clubhouse. Foundation work done for 8.'],
-                            'dealer' => 0, 'started_days_ago' => 150, 'ends_in_days' => 60, 'matures_in_days' => 20,
+                            'started_days_ago' => 150, 'ends_in_days' => 60,
                             'location' => ['name' => 'Villa plots', 'address' => 'Survey No. 112, Kakkanad–Pallikkara Rd', 'city' => 'Kakkanad', 'district' => 'Ernakulam', 'state' => 'Kerala', 'postal_code' => '682030', 'latitude' => 10.0159, 'longitude' => 76.3419],
                             'works' => [
                                 ['Foundation pour – Villas 9-12', WorkPriority::High, WorkStatus::InProgress, 2],
@@ -60,8 +58,8 @@ class DemoDataSeeder extends Seeder
                     'client' => ['name' => 'Abdul Rasheed', 'company' => 'Harbour Homes', 'contact_person' => 'Abdul Rasheed', 'phone' => '9895123456', 'email' => 'rasheed@harbourhomes.test', 'city' => 'Kozhikode'],
                     'projects' => [
                         [
-                            'project' => ['name' => 'Harbour View Apartments', 'type_of_work' => 'Residential – Apartment', 'status' => ProjectStatus::Planning, 'budget' => 85000000, 'brand_preferred' => 'Ramco', 'expected_qty' => 12000, 'specification_details' => 'G+9, RCC framed structure', 'notes' => 'Owner comparing quotes from two dealers.'],
-                            'dealer' => 1, 'started_days_ago' => 20, 'ends_in_days' => 420, 'matures_in_days' => 45,
+                            'project' => ['name' => 'Harbour View Apartments', 'type_of_work' => 'Residential – Apartment', 'status' => ProjectStatus::Planning, 'budget' => 85000000, 'brand_preferred' => 'Ramco', 'expected_qty' => 12000, 'specification_details' => 'G+9, RCC framed structure', 'notes' => 'Owner comparing quotes from two suppliers.'],
+                            'started_days_ago' => 20, 'ends_in_days' => 420,
                             'location' => ['name' => 'Beach Road plot', 'address' => 'Near Beach Rd, Kozhikode South', 'city' => 'Kozhikode', 'district' => 'Kozhikode', 'state' => 'Kerala', 'postal_code' => '673001'],
                             'works' => [
                                 ['Soil testing', WorkPriority::High, WorkStatus::Pending, 5],
@@ -75,7 +73,7 @@ class DemoDataSeeder extends Seeder
                     'projects' => [
                         [
                             'project' => ['name' => "St. Mary's School Extension", 'type_of_work' => 'Institutional', 'status' => ProjectStatus::Completed, 'budget' => 9500000, 'brand_preferred' => 'ACC', 'expected_qty' => 2200, 'specification_details' => 'New classroom block, 3 floors'],
-                            'dealer' => 0, 'started_days_ago' => 200, 'ends_in_days' => -10, 'matures_in_days' => -4, 'completed_days_ago' => 8,
+                            'started_days_ago' => 200, 'ends_in_days' => -10, 'completed_days_ago' => 8,
                             'location' => ['name' => 'School campus', 'address' => 'Church Rd, Pala', 'city' => 'Pala', 'district' => 'Kottayam', 'state' => 'Kerala', 'postal_code' => '686575'],
                             'works' => [
                                 ['Final handover inspection', WorkPriority::High, WorkStatus::Completed, -9],
@@ -83,7 +81,7 @@ class DemoDataSeeder extends Seeder
                         ],
                         [
                             'project' => ['name' => "St. Mary's Chapel Renovation", 'type_of_work' => 'Renovation', 'status' => ProjectStatus::OnHold, 'budget' => 2800000, 'expected_qty' => 400, 'notes' => 'Waiting for trust committee approval.'],
-                            'dealer' => null, 'started_days_ago' => 40, 'ends_in_days' => 5, 'matures_in_days' => null,
+                            'started_days_ago' => 40, 'ends_in_days' => 5,
                             'location' => ['name' => 'Chapel', 'address' => 'Church Rd, Pala', 'city' => 'Pala', 'district' => 'Kottayam', 'state' => 'Kerala', 'postal_code' => '686575'],
                             'works' => [],
                         ],
@@ -104,14 +102,13 @@ class DemoDataSeeder extends Seeder
             ],
             owner: ['Prakash Shetty', 'prakash@coastal.test'],
             staff: null,
-            dealers: [['Coastal Hardware & Cement', 'Mangaluru'], ['Sai Enterprises', 'Bengaluru']],
             clients: [
                 [
                     'client' => ['name' => 'Metro Logistics', 'company' => 'Metro Logistics Pvt Ltd', 'contact_person' => 'Kiran Shetty', 'phone' => '9880011223', 'email' => 'projects@metrologistics.test', 'city' => 'Mangaluru'],
                     'projects' => [
                         [
                             'project' => ['name' => 'Coastal Warehouse Complex', 'type_of_work' => 'Industrial – Warehouse', 'status' => ProjectStatus::Active, 'budget' => 46000000, 'brand_preferred' => 'Dalmia', 'expected_qty' => 8000, 'specification_details' => 'PEB structure with RCC flooring'],
-                            'dealer' => 0, 'started_days_ago' => 90, 'ends_in_days' => 75, 'matures_in_days' => 75,
+                            'started_days_ago' => 90, 'ends_in_days' => 75,
                             'location' => ['name' => 'Warehouse site', 'address' => 'Plot 7, Baikampady Industrial Area', 'city' => 'Mangaluru', 'district' => 'Dakshina Kannada', 'state' => 'Karnataka', 'postal_code' => '575011'],
                             'works' => [
                                 ['Roof sheeting', WorkPriority::High, WorkStatus::InProgress, 10],
@@ -125,7 +122,7 @@ class DemoDataSeeder extends Seeder
                     'projects' => [
                         [
                             'project' => ['name' => 'Whitefield Tech Park – Block C', 'type_of_work' => 'Commercial – Office', 'status' => ProjectStatus::Active, 'budget' => 150000000, 'brand_preferred' => 'UltraTech', 'expected_qty' => 25000, 'specification_details' => 'Ready-mix concrete M30 for slabs'],
-                            'dealer' => 1, 'started_days_ago' => 60, 'ends_in_days' => 12, 'matures_in_days' => 12,
+                            'started_days_ago' => 60, 'ends_in_days' => 12,
                             'location' => ['name' => 'Block C', 'address' => 'ITPL Main Rd, Whitefield', 'city' => 'Bengaluru', 'district' => 'Bengaluru Urban', 'state' => 'Karnataka', 'postal_code' => '560066'],
                             'works' => [
                                 ['Slab casting – 6th floor', WorkPriority::Urgent, WorkStatus::Pending, 2],
@@ -138,7 +135,7 @@ class DemoDataSeeder extends Seeder
                     'projects' => [
                         [
                             'project' => ['name' => 'Individual House – Ramesh', 'type_of_work' => 'Residential – House', 'status' => ProjectStatus::Planning, 'budget' => 4200000, 'brand_preferred' => 'Birla A1', 'expected_qty' => 650, 'description' => 'Ground + 1 floor, 2,400 sq ft.'],
-                            'dealer' => null, 'started_days_ago' => 10, 'ends_in_days' => 180, 'matures_in_days' => 28,
+                            'started_days_ago' => 10, 'ends_in_days' => 180,
                             'location' => ['name' => 'House plot', 'address' => '4th Cross, Saraswathipuram', 'city' => 'Mysuru', 'district' => 'Mysuru', 'state' => 'Karnataka', 'postal_code' => '570009'],
                             'works' => [],
                         ],
@@ -154,14 +151,13 @@ class DemoDataSeeder extends Seeder
             ],
             owner: ['Srinivas Reddy', 'srinivas@deccan.test'],
             staff: null,
-            dealers: [['Deccan Build Mart', 'Hyderabad']],
             clients: [
                 [
                     'client' => ['name' => 'Gachibowli Residency Association', 'company' => null, 'contact_person' => 'Srinivas Reddy', 'phone' => '9866554433', 'email' => 'gra@example.test', 'city' => 'Hyderabad'],
                     'projects' => [
                         [
                             'project' => ['name' => 'Gachibowli Residency', 'type_of_work' => 'Residential – Apartment', 'status' => ProjectStatus::Planning, 'budget' => 210000000, 'expected_qty' => 30000, 'specification_details' => 'Two towers, G+14'],
-                            'dealer' => 0, 'started_days_ago' => 30, 'ends_in_days' => 600, 'matures_in_days' => 90,
+                            'started_days_ago' => 30, 'ends_in_days' => 600,
                             'location' => ['name' => 'Tower site', 'address' => 'Financial District, Nanakramguda', 'city' => 'Hyderabad', 'district' => 'Rangareddy', 'state' => 'Telangana', 'postal_code' => '500032'],
                             'works' => [],
                         ],
@@ -176,10 +172,9 @@ class DemoDataSeeder extends Seeder
      * @param  array<string, mixed>  $details
      * @param  array{0: string, 1: string}  $owner
      * @param  array{0: string, 1: string}|null  $staff
-     * @param  list<array{0: string, 1: string}>  $dealers
      * @param  list<array<string, mixed>>  $clients
      */
-    private function seedContractor(array $details, array $owner, ?array $staff, array $dealers, array $clients, ContractorStatus $status = ContractorStatus::Active): void
+    private function seedContractor(array $details, array $owner, ?array $staff, array $clients, ContractorStatus $status = ContractorStatus::Active): void
     {
         $contractor = new Contractor($details);
         $contractor->status = $status;
@@ -191,14 +186,6 @@ class DemoDataSeeder extends Seeder
             $this->user($contractor, Role::CONTRACTOR_STAFF, ...$staff);
         }
 
-        $dealerIds = collect($dealers)->map(function (array $dealer) use ($contractor): int {
-            $model = new Dealer(['name' => $dealer[0], 'city' => $dealer[1]]);
-            $model->contractor_id = $contractor->id;
-            $model->save();
-
-            return $model->id;
-        })->all();
-
         foreach ($clients as $index => $clientData) {
             $clientCreatedAt = now()->subDays(220 - $index * 25);
             $client = new Client(['country' => 'India', 'state' => $details['state'], 'status' => ClientStatus::Active, ...$clientData['client']]);
@@ -208,28 +195,25 @@ class DemoDataSeeder extends Seeder
             $this->log($ownerUser, $client, "{$ownerUser->name} created client \"{$client->name}\"", $clientCreatedAt);
 
             foreach ($clientData['projects'] as $projectData) {
-                $this->seedProject($contractor, $client, $ownerUser, $dealerIds, $projectData);
+                $this->seedProject($contractor, $client, $ownerUser, $projectData);
             }
         }
     }
 
     /**
-     * @param  list<int>  $dealerIds
      * @param  array<string, mixed>  $data
      */
-    private function seedProject(Contractor $contractor, Client $client, User $owner, array $dealerIds, array $data): void
+    private function seedProject(Contractor $contractor, Client $client, User $owner, array $data): void
     {
         $createdAt = now()->subDays($data['started_days_ago'] + 7);
 
         $project = new Project([
             ...$data['project'],
             'client_id' => $client->id,
-            'dealer_id' => $data['dealer'] !== null ? $dealerIds[$data['dealer']] : null,
             'project_number' => sprintf('PRJ-%04d', Project::withoutGlobalScopes()->where('contractor_id', $contractor->id)->withTrashed()->count() + 1),
             'start_date' => today()->subDays($data['started_days_ago']),
             'expected_end_date' => today()->addDays($data['ends_in_days']),
             'actual_end_date' => isset($data['completed_days_ago']) ? today()->subDays($data['completed_days_ago']) : null,
-            'expected_maturity_date' => $data['matures_in_days'] !== null ? today()->addDays($data['matures_in_days']) : null,
         ]);
         $project->contractor_id = $contractor->id;
         $project->created_at = $createdAt;

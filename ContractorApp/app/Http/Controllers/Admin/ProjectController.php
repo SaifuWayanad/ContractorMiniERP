@@ -8,7 +8,6 @@ use App\Http\Requests\Admin\ProjectRequest;
 use App\Models\ActivityLog;
 use App\Models\Client;
 use App\Models\Contractor;
-use App\Models\Dealer;
 use App\Models\Project;
 use App\Models\ProjectLocation;
 use App\Services\LocationService;
@@ -65,16 +64,10 @@ class ProjectController extends Controller
 
         $contractorId = $request->integer('contractor_id') ?: null;
 
-        $dealers = $contractorId
-            ? Dealer::forContractor($contractorId)->orderBy('name')->get(['id', 'name', 'city'])
-                ->mapWithKeys(fn (Dealer $d): array => [$d->id => $d->city ? "{$d->name} ({$d->city})" : $d->name])
-            : collect();
-
         return view('admin.projects.create', [
             'project'              => new Project,
             'contractors'          => Contractor::orderBy('company_name')->pluck('company_name', 'id'),
             'clients'              => $contractorId ? Client::forContractor($contractorId)->orderBy('name')->pluck('name', 'id') : collect(),
-            'dealers'              => $dealers,
             'selectedContractorId' => $contractorId,
             'districtsByState'     => $locations->districtsByState(),
         ]);
@@ -88,7 +81,6 @@ class ProjectController extends Controller
             'contractor_id'          => ['required', 'integer', Rule::exists('contractors', 'id')],
             'client_id'              => ['required', 'integer', Rule::exists('clients', 'id')->whereNull('deleted_at')],
             'name'                   => ['required', 'string', 'max:150'],
-            'dealer_id'              => ['nullable', 'integer', Rule::exists('dealers', 'id')],
             'status'                 => ['nullable', Rule::enum(ProjectStatus::class)],
             'start_date'             => ['nullable', 'date'],
             'description'            => ['nullable', 'string', 'max:5000'],
@@ -145,8 +137,6 @@ class ProjectController extends Controller
         return view('admin.projects.edit', [
             'project' => $project,
             'clients' => Client::forContractor($project->contractor_id)->orderBy('name')->pluck('name', 'id'),
-            'dealers' => Dealer::forContractor($project->contractor_id)->orderBy('name')->get(['id', 'name', 'city'])
-                ->mapWithKeys(fn (Dealer $d): array => [$d->id => $d->city ? "{$d->name} ({$d->city})" : $d->name]),
         ]);
     }
 
@@ -168,23 +158,6 @@ class ProjectController extends Controller
         return to_route('admin.projects.index')->with('toast', "Project \"{$project->name}\" deleted.");
     }
 
-    public function quickDealer(Request $request): \Illuminate\Http\JsonResponse
-    {
-        $this->authorize('create', Project::class);
-
-        $data = $request->validate([
-            'contractor_id' => ['required', 'integer', Rule::exists('contractors', 'id')],
-            'name'          => ['required', 'string', 'max:120'],
-            'phone'         => ['nullable', 'string', 'max:20'],
-        ]);
-
-        $dealer = new Dealer(['name' => $data['name'], 'phone' => $data['phone'] ?? null]);
-        $dealer->contractor_id = $data['contractor_id'];
-        $dealer->save();
-
-        return response()->json(['id' => $dealer->id, 'name' => $dealer->name], 201);
-    }
-
     private function nextProjectNumber(): string
     {
         $sequence = Project::withTrashed()->count() + 1;
@@ -200,7 +173,7 @@ class ProjectController extends Controller
     {
         $this->authorize('view', $project);
 
-        $project->load(['contractor', 'client', 'dealers', 'locations', 'works.assignee:id,name', 'meetings.createdBy:id,name']);
+        $project->load(['contractor', 'client', 'locations', 'works.assignee:id,name', 'meetings.createdBy:id,name']);
 
         return view('admin.projects.show', [
             'project' => $project,

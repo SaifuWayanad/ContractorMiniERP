@@ -6,7 +6,6 @@ use App\Enums\ProjectStatus;
 use App\Http\Requests\ProjectRequest;
 use App\Models\ActivityLog;
 use App\Models\Client;
-use App\Models\Dealer;
 use App\Models\Project;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +15,7 @@ use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
-    private const SORTS = ['newest', 'oldest', 'name', 'start', 'end', 'maturity', 'budget'];
+    private const SORTS = ['newest', 'oldest', 'name', 'start', 'end', 'budget'];
 
     public function index(Request $request): View
     {
@@ -45,7 +44,6 @@ class ProjectController extends Controller
             'name' => $query->orderBy('name'),
             'start' => $query->orderByRaw('start_date is null')->orderByDesc('start_date'),
             'end' => $query->orderByRaw('expected_end_date is null')->orderBy('expected_end_date'),
-            'maturity' => $query->orderByRaw('expected_maturity_date is null')->orderBy('expected_maturity_date'),
             'budget' => $query->orderByDesc('budget'),
             default => $query->latest(),
         };
@@ -90,13 +88,32 @@ class ProjectController extends Controller
     {
         $this->authorize('view', $project);
 
-        $project->load(['client', 'dealer', 'dealers', 'locations' => fn ($query) => $query->orderBy('id')]);
+        $project->load(['client', 'locations' => fn ($query) => $query->orderBy('id')]);
+
+        $purchases = $project->purchases()->with('product:id,name,unit')->orderByDesc('purchase_date')->get();
+        $expenses  = $project->expenses()->orderByDesc('expense_date')->get();
+        $payments  = $project->payments()->orderByDesc('payment_date')->get();
+        $works     = $project->works()->with('assignee:id,name')->orderByRaw('due_date is null')->orderBy('due_date')->get();
+
+        $financials = [
+            'purchases_total' => (float) $purchases->sum('line_total'),
+            'works_total'     => (float) $works->sum('amount'),
+            'expenses_total'  => (float) $expenses->sum('amount') + (float) $works->sum('amount'),
+            'payments_total'  => (float) $payments->sum('amount_received'),
+            'budget'          => (float) ($project->budget ?? 0),
+        ];
+        $financials['total_cost']   = $financials['purchases_total'] + $financials['expenses_total'];
+        $financials['outstanding']  = $financials['budget'] - $financials['payments_total'];
+        $financials['profit']       = $financials['payments_total'] - $financials['total_cost'];
 
         return view('projects.show', [
             'project'        => $project,
-            'works'          => $project->works()->with('assignee:id,name')->orderByRaw('due_date is null')->orderBy('due_date')->get(),
+            'works'          => $works,
             'meetings'       => $project->meetings()->with('createdBy:id,name')->orderByDesc('meeting_at')->get(),
-            'dealerOptions'  => Dealer::orderBy('name')->get(['id', 'name', 'city']),
+            'purchases'      => $purchases,
+            'expenses'       => $expenses,
+            'payments'       => $payments,
+            'financials'     => $financials,
             'activity' => ActivityLog::query()
                 ->where('contractor_id', $project->contractor_id)
                 ->where(function (Builder $query) use ($project): void {
@@ -110,21 +127,6 @@ class ProjectController extends Controller
                 ->limit(12)
                 ->get(),
         ]);
-    }
-
-    public function addContact(Request $request, Project $project): RedirectResponse
-    {
-        $this->authorize('update', $project);
-        $data = $request->validate(['dealer_id' => ['required', 'integer', 'exists:dealers,id']]);
-        $project->dealers()->syncWithoutDetaching([$data['dealer_id']]);
-        return back()->with('toast', 'Contact added.');
-    }
-
-    public function removeContact(Project $project, Dealer $dealer): RedirectResponse
-    {
-        $this->authorize('update', $project);
-        $project->dealers()->detach($dealer->id);
-        return back()->with('toast', 'Contact removed.');
     }
 
     public function edit(Project $project): View
@@ -186,8 +188,8 @@ class ProjectController extends Controller
                 ->where(fn (Builder $query) => $query->where('status', 'active')->orWhere('id', $project->client_id))
                 ->orderBy('name')
                 ->pluck('name', 'id'),
-            'dealers' => Dealer::orderBy('name')->get(['id', 'name', 'city'])
-                ->mapWithKeys(fn (Dealer $dealer): array => [$dealer->id => $dealer->city ? "{$dealer->name} ({$dealer->city})" : $dealer->name]),
+            'workTypes' => \App\Models\WorkType::orderBy('name')->get(['id', 'name']),
+            'locations' => Project::whereNotNull('location')->where('location', '!=', '')->distinct()->orderBy('location')->pluck('location'),
         ];
     }
 

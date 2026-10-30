@@ -2,28 +2,30 @@
 
 @section('title', 'Dashboard')
 
-@php
-    $hour = now()->hour;
-    $greeting = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
-    use App\Services\DashboardService;
-@endphp
+@php use App\Services\DashboardService; @endphp
 
 @section('content')
-<x-page-header :title="$greeting.', '.$user->firstName()" subtitle="Here's an overview of your projects and business activity." />
+<x-page-header :title="'Welcome, '.$user->firstName()" subtitle="Here's an overview of your projects and business activity." />
 
-{{-- 4 stat cards --}}
+{{-- 6 KPI stat cards (BuildTrack layout: 3 per row) --}}
 <div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3">
-        <x-stat-card label="Total Projects" :value="number_format($summary['projects'])" icon="bi-building" accent="info" :href="$user->can('projects.view') ? route('projects.index') : null" />
+    <div class="col-6 col-lg-4">
+        <x-stat-card label="Total Projects" :value="number_format($summary['projects'])" icon="bi-building" accent="primary" :href="$user->can('projects.view') ? route('projects.index') : null" />
     </div>
-    <div class="col-6 col-lg-3">
-        <x-stat-card label="Active Projects" :value="number_format($summary['active_projects'])" icon="bi-activity" accent="success" :href="$user->can('projects.view') ? route('projects.index', ['status' => 'active']) : null" />
+    <div class="col-6 col-lg-4">
+        <x-stat-card label="Total Customers" :value="number_format($summary['clients'])" icon="bi-people" accent="info" :href="$user->can('clients.view') ? route('clients.index') : null" />
     </div>
-    <div class="col-6 col-lg-3">
-        <x-stat-card label="Pending Works" :value="number_format($summary['pending_works'])" icon="bi-list-check" accent="warning" :href="$user->can('works.view') ? route('works.index', ['status' => 'open']) : null" />
+    <div class="col-6 col-lg-4">
+        <x-stat-card label="Purchase Value" :value="'₹'.number_format($summary['purchase_value'], 2)" icon="bi-cart3" accent="warning" :href="$user->can('purchases.view') ? route('purchases.index') : null" />
     </div>
-    <div class="col-6 col-lg-3">
-        <x-stat-card label="Total Clients" :value="number_format($summary['clients'])" icon="bi-person-vcard" accent="primary" :href="$user->can('clients.view') ? route('clients.index') : null" />
+    <div class="col-6 col-lg-4">
+        <x-stat-card label="Total Expenses" :value="'₹'.number_format($summary['total_expenses'], 2)" icon="bi-receipt" accent="danger" :href="$user->can('expenses.view') ? route('expenses.index') : null" />
+    </div>
+    <div class="col-6 col-lg-4">
+        <x-stat-card label="Total Receipts" :value="'₹'.number_format($summary['total_receipts'], 2)" icon="bi-cash-coin" accent="success" :href="$user->can('payments.view') ? route('payments.index') : null" />
+    </div>
+    <div class="col-6 col-lg-4">
+        <x-stat-card label="Outstanding" :value="'₹'.number_format($summary['outstanding'], 2)" icon="bi-hourglass-split" accent="secondary" :href="$user->can('reports.view') ? route('reports.outstanding') : null" />
     </div>
 </div>
 
@@ -31,24 +33,21 @@
 <div class="row g-3 mb-4">
     <div class="col-12 col-xl-6">
         <x-card :flush="true" class="h-100 border-warning">
-            <x-slot:title><span class="text-warning"><i class="bi bi-calendar-event me-1"></i>Today's Meetings</span></x-slot:title>
+            <x-slot:title><i class="bi bi-calendar-event me-1 text-warning"></i>Today's Meetings</x-slot:title>
             <x-slot:actions><span class="badge badge-soft-warning">{{ today()->format('d M Y') }}</span></x-slot:actions>
             @if ($todaysMeetings->isEmpty())
                 <div class="empty-inline"><i class="bi bi-calendar-check d-block fs-4 mb-1"></i>No meetings today.</div>
             @else
                 <ul class="feed">
-                    @foreach ($todaysMeetings as $meeting)
+                    @foreach ($todaysMeetings as $visit)
                         <li class="feed-item align-items-center">
                             <div class="deadline-date">
-                                <span class="day">{{ $meeting->next_meeting_at->format('h:i') }}</span>
-                                <span class="month">{{ $meeting->next_meeting_at->format('A') }}</span>
+                                <span class="day">{{ $visit->next_meeting_date->format('d') }}</span>
+                                <span class="month">{{ $visit->next_meeting_date->format('M') }}</span>
                             </div>
                             <div class="flex-grow-1 min-w-0">
-                                <a href="{{ route('projects.show', $meeting) }}" class="row-title d-block text-truncate">{{ $meeting->name }}</a>
-                                <div class="feed-meta text-truncate">
-                                    {{ $meeting->client?->name }}
-                                    @if ($meeting->next_meeting_notes) · {{ $meeting->next_meeting_notes }} @endif
-                                </div>
+                                <span class="row-title d-block text-truncate">{{ $visit->purpose ?? 'Visit' }}</span>
+                                <div class="feed-meta text-truncate">{{ $visit->client?->name }}@if($visit->location) · {{ $visit->location }}@endif</div>
                             </div>
                             <span class="badge badge-soft-warning">Today</span>
                         </li>
@@ -65,19 +64,16 @@
                 <div class="empty-inline"><i class="bi bi-calendar d-block fs-4 mb-1"></i>No upcoming meetings.</div>
             @else
                 <ul class="feed">
-                    @foreach ($upcomingMeetings as $meeting)
-                        @php $daysAway = (int) today()->diffInDays($meeting->next_meeting_at->toDateString(), false); @endphp
+                    @foreach ($upcomingMeetings as $visit)
+                        @php $daysAway = (int) today()->diffInDays($visit->next_meeting_date, false); @endphp
                         <li class="feed-item align-items-center">
                             <div class="deadline-date">
-                                <span class="day">{{ $meeting->next_meeting_at->day }}</span>
-                                <span class="month">{{ $meeting->next_meeting_at->format('M') }}</span>
+                                <span class="day">{{ $visit->next_meeting_date->day }}</span>
+                                <span class="month">{{ $visit->next_meeting_date->format('M') }}</span>
                             </div>
                             <div class="flex-grow-1 min-w-0">
-                                <a href="{{ route('projects.show', $meeting) }}" class="row-title d-block text-truncate">{{ $meeting->name }}</a>
-                                <div class="feed-meta text-truncate">
-                                    {{ $meeting->client?->name }} · {{ $meeting->next_meeting_at->format('h:i A') }}
-                                    @if ($meeting->next_meeting_notes) · {{ $meeting->next_meeting_notes }} @endif
-                                </div>
+                                <span class="row-title d-block text-truncate">{{ $visit->purpose ?? 'Visit' }}</span>
+                                <div class="feed-meta text-truncate">{{ $visit->client?->name }}@if($visit->location) · {{ $visit->location }}@endif</div>
                             </div>
                             <span @class(['badge text-nowrap', 'badge-soft-info' => $daysAway > 2, 'badge-soft-warning' => $daysAway <= 2])>
                                 {{ $daysAway === 1 ? 'Tomorrow' : "In {$daysAway} days" }}
@@ -103,10 +99,11 @@
                 <table class="table table-hover align-middle">
                     <thead>
                         <tr>
-                            <th>Project</th>
-                            <th class="d-none d-md-table-cell">Client</th>
-                            <th class="d-none d-sm-table-cell">Start Date</th>
-                            <th>Status</th>
+                            <th>Project Name</th>
+                            <th class="d-none d-md-table-cell">Customer</th>
+                            <th class="d-none d-sm-table-cell text-end">Budget</th>
+                            <th class="d-none d-sm-table-cell">Added</th>
+                            <th class="text-center">View</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -114,11 +111,18 @@
                             <tr>
                                 <td>
                                     <a href="{{ route('projects.show', $project) }}" class="row-title">{{ $project->name }}</a>
-                                    <div class="cell-sub">{{ $project->project_number }}<span class="d-md-none"> · {{ $project->client?->name }}</span></div>
+                                    <div class="cell-sub d-md-none">{{ $project->client?->name }}</div>
                                 </td>
-                                <td class="d-none d-md-table-cell">{{ $project->client?->name }}</td>
-                                <td class="d-none d-sm-table-cell text-nowrap">{{ $project->start_date?->format('d M Y') ?? '—' }}</td>
-                                <td><x-status-badge :status="$project->status" /></td>
+                                <td class="d-none d-md-table-cell">{{ $project->client?->name ?? '—' }}</td>
+                                <td class="d-none d-sm-table-cell text-end">
+                                    {{ $project->budget ? '₹'.number_format((float)$project->budget, 2) : '—' }}
+                                </td>
+                                <td class="d-none d-sm-table-cell text-nowrap">{{ $project->created_at->format('d M Y') }}</td>
+                                <td class="text-center">
+                                    <a href="{{ route('projects.show', $project) }}" class="btn btn-icon btn-sm text-primary" aria-label="View {{ $project->name }}">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

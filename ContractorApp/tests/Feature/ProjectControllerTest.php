@@ -24,7 +24,7 @@ class ProjectControllerTest extends TestCase
         $this->actingAs($owner)->post(route('projects.store'), [
             'name' => 'Green Valley Villas', 'client_id' => $client->id, 'status' => 'active',
             'type_of_work' => 'Residential – Villas', 'brand_preferred' => 'UltraTech', 'expected_qty' => 4500,
-            'expected_maturity_date' => today()->addDays(20)->toDateString(), 'budget' => 3200000,
+            'budget' => 3200000,
         ])->assertRedirect();
 
         $this->assertDatabaseHas('projects', [

@@ -6,6 +6,7 @@ use App\Enums\ClientStatus;
 use App\Http\Requests\ClientRequest;
 use App\Models\ActivityLog;
 use App\Models\Client;
+use App\Models\Project;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -56,7 +57,15 @@ class ClientController extends Controller
     {
         $this->authorize('create', Client::class);
 
-        return view('clients.create', ['client' => new Client(['country' => 'India', 'status' => ClientStatus::Active])]);
+        $locations = Client::whereNotNull('city')->where('city', '!=', '')
+            ->distinct()->orderBy('city')->pluck('city')
+            ->merge(Project::whereNotNull('location')->where('location', '!=', '')->distinct()->pluck('location'))
+            ->unique()->sort()->values();
+
+        return view('clients.create', [
+            'client'    => new Client(['country' => 'India', 'status' => ClientStatus::Active]),
+            'locations' => $locations,
+        ]);
     }
 
     public function store(ClientRequest $request): RedirectResponse

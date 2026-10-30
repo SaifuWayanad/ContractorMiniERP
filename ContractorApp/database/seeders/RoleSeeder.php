@@ -39,7 +39,12 @@ class RoleSeeder extends Seeder
                     'projects.view', 'projects.create', 'projects.edit',
                     'locations.view', 'locations.create', 'locations.edit',
                     'works.view', 'works.create', 'works.edit',
-                    'dealers.view', 'profile.view', 'activity.view',
+                    'profile.view', 'activity.view',
+                    'products.view', 'products.create',
+                    'purchases.view', 'purchases.create',
+                    'expenses.view', 'expenses.create',
+                    'payments.view', 'payments.create',
+                    'reports.view',
                 ],
             ],
         ];
@@ -54,7 +59,8 @@ class RoleSeeder extends Seeder
                 $role->is_system = $definition['is_system'];
                 $role->save();
                 $role->permissions()->sync(Permission::whereIn('name', $definition['permissions'])->pluck('id'));
-            } elseif ($role->isSuperAdmin()) {
+            } elseif ($role->is_system) {
+                // System roles always get the full permission set synced so new permissions are picked up automatically.
                 $role->permissions()->sync(Permission::whereIn('name', $definition['permissions'])->pluck('id'));
             }
         }

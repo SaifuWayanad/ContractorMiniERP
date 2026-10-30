@@ -19,9 +19,6 @@ class ProjectRequest extends FormRequest
     }
 
     /**
-     * Client, dealer and project number are checked against the signed-in contractor only, so IDs
-     * belonging to another contractor are rejected as if they did not exist.
-     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -32,13 +29,13 @@ class ProjectRequest extends FormRequest
 
         return [
             'client_id' => ['required', 'integer', Rule::exists('clients', 'id')->where('contractor_id', $contractorId)->whereNull('deleted_at')],
-            'dealer_id' => ['nullable', 'integer', Rule::exists('dealers', 'id')->where('contractor_id', $contractorId)->whereNull('deleted_at')],
             'name' => ['required', 'string', 'max:150'],
             'project_number' => [
                 'nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9\-\/_.]+$/',
                 Rule::unique('projects', 'project_number')->where('contractor_id', $contractorId)->whereNull('deleted_at')->ignore($project?->id),
             ],
             'type_of_work' => ['nullable', 'string', 'max:80'],
+            'location' => ['nullable', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:5000'],
             'start_date' => ['nullable', 'date'],
             'expected_end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
@@ -47,7 +44,6 @@ class ProjectRequest extends FormRequest
             'budget' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
             'brand_preferred' => ['nullable', 'string', 'max:80'],
             'expected_qty' => ['nullable', 'integer', 'min:0', 'max:10000000'],
-            'expected_maturity_date' => ['nullable', 'date'],
             'specification_details' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'next_meeting_at' => ['nullable', 'date'],
@@ -63,7 +59,6 @@ class ProjectRequest extends FormRequest
         return [
             'client_id.required' => 'Select a client.',
             'client_id.exists' => 'Select a client from the list.',
-            'dealer_id.exists' => 'Select a dealer from the list.',
             'project_number.unique' => 'Another project already uses this number.',
             'project_number.regex' => 'Use only letters, numbers, dashes, slashes, dots or underscores.',
             'expected_end_date.after_or_equal' => 'The expected end date must be on or after the start date.',
@@ -85,7 +80,6 @@ class ProjectRequest extends FormRequest
             'actual_end_date' => 'actual end date',
             'brand_preferred' => 'brand preferred',
             'expected_qty' => 'expected qty',
-            'expected_maturity_date' => 'expected maturity date',
             'specification_details' => 'details for specification',
         ];
     }

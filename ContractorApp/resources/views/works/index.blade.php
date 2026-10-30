@@ -11,6 +11,56 @@
     </x-slot:actions>
 </x-page-header>
 
+{{-- Filters --}}
+<form method="get" action="{{ route('works.index') }}" class="mb-4" data-auto-filter>
+    <div class="row g-2 align-items-end">
+        <div class="col-sm-4 col-md-3">
+            <input type="text" class="form-control form-control-sm" name="search" value="{{ $filters['search'] }}" placeholder="Search works…" />
+        </div>
+        <div class="col-sm-4 col-md-3">
+            <div class="cs-wrapper cs-sm" id="wrkClientWrapper">
+                <div class="cs-trigger">
+                    <span class="cs-value {{ $filters['client_id'] ? '' : 'cs-placeholder' }}">{{ $filters['client_id'] ? ($clients[$filters['client_id']] ?? 'All customers') : 'All customers' }}</span>
+                    <i class="bi bi-chevron-down cs-arrow"></i>
+                </div>
+                <div class="cs-panel">
+                    <div class="cs-search-wrap"><i class="bi bi-search"></i><input type="text" class="cs-search" placeholder="Search…"></div>
+                    <div class="cs-list">
+                        <div class="cs-item" data-value="">All customers</div>
+                        @foreach($clients as $id => $name)
+                            <div class="cs-item" data-value="{{ $id }}">{{ $name }}</div>
+                        @endforeach
+                    </div>
+                </div>
+                <input type="hidden" name="client_id" id="wrkClientInput" value="{{ $filters['client_id'] ?? '' }}">
+            </div>
+        </div>
+        <div class="col-sm-4 col-md-3">
+            <div class="cs-wrapper cs-sm" id="wrkProjectWrapper">
+                <div class="cs-trigger">
+                    <span class="cs-value {{ $filters['project_id'] ? '' : 'cs-placeholder' }}">{{ $filters['project_id'] ? ($projects[$filters['project_id']] ?? 'All projects') : 'All projects' }}</span>
+                    <i class="bi bi-chevron-down cs-arrow"></i>
+                </div>
+                <div class="cs-panel">
+                    <div class="cs-search-wrap"><i class="bi bi-search"></i><input type="text" class="cs-search" placeholder="Search…"></div>
+                    <div class="cs-list">
+                        <div class="cs-item" data-value="">All projects</div>
+                        @foreach($projects as $id => $name)
+                            <div class="cs-item" data-value="{{ $id }}">{{ $name }}</div>
+                        @endforeach
+                    </div>
+                </div>
+                <input type="hidden" name="project_id" id="wrkProjectInput" value="{{ $filters['project_id'] ?? '' }}">
+            </div>
+        </div>
+        @if($filters['search'] || $filters['client_id'] || $filters['project_id'] || $filters['status'] || $filters['priority'] || $filters['due'])
+        <div class="col-auto">
+            <a href="{{ route('works.index') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
+        </div>
+        @endif
+    </div>
+</form>
+
 @if ($works->isEmpty())
     <div class="card">
         <x-empty-state icon="bi-list-check" title="No works found" message="You haven't added any works yet.">
@@ -26,8 +76,8 @@
                 <tr>
                     <th>Work</th>
                     <th class="d-none d-md-table-cell">Project</th>
-                    <th class="d-none d-lg-table-cell">Assigned to</th>
                     <th class="d-none d-sm-table-cell">Due</th>
+                    <th class="d-none d-lg-table-cell text-end">Amount</th>
                     <th>Priority</th>
                     <th>Status</th>
                     <th class="text-end"><span class="visually-hidden">Actions</span></th>
@@ -41,11 +91,11 @@
                             <div class="cell-sub d-md-none">{{ $work->project?->name }}</div>
                         </td>
                         <td class="d-none d-md-table-cell">{{ $work->project?->name }}</td>
-                        <td class="d-none d-lg-table-cell">{{ $work->assignee?->name ?? '—' }}</td>
                         <td class="d-none d-sm-table-cell text-nowrap">
                             {{ $work->due_date?->format('d M Y') ?? '—' }}
                             @if ($work->isOverdue()) <div><span class="badge badge-soft-danger">Overdue</span></div> @endif
                         </td>
+                        <td class="d-none d-lg-table-cell text-end">{{ $work->amount !== null ? '₹'.number_format((float)$work->amount, 2) : '—' }}</td>
                         <td><x-status-badge :status="$work->priority" /></td>
                         <td><x-status-badge :status="$work->status" /></td>
                         <td class="text-end">
@@ -79,4 +129,19 @@
         </table>
     </x-table-card>
 @endif
+@push('scripts')
+<script>
+(function () {
+    var form = document.querySelector('form[data-auto-filter]');
+    function bindCs(wrapperId, inputId) {
+        var cs = new CustomSelect(wrapperId);
+        var input = document.getElementById(inputId);
+        var orig = cs._select.bind(cs);
+        cs._select = function(value, label) { orig(value, label); input.value = value; form.submit(); };
+    }
+    bindCs('wrkClientWrapper', 'wrkClientInput');
+    bindCs('wrkProjectWrapper', 'wrkProjectInput');
+})();
+</script>
+@endpush
 @endsection

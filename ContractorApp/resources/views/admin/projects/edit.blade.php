@@ -14,7 +14,7 @@
 <form method="post" action="{{ route('admin.projects.update', $project) }}">
     @csrf
     @method('PUT')
-    @include('projects.form', ['project' => $project, 'clients' => $clients, 'dealers' => $dealers])
+    @include('projects.form', ['project' => $project, 'clients' => $clients])
     <x-form.actions :cancel="route('admin.projects.show', $project)" submit="Save Changes" />
 </form>
 @endsection

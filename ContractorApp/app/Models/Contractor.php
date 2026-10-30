@@ -82,14 +82,6 @@ class Contractor extends Model
     }
 
     /**
-     * @return HasMany<Dealer, $this>
-     */
-    public function dealers(): HasMany
-    {
-        return $this->hasMany(Dealer::class);
-    }
-
-    /**
      * @return HasMany<ActivityLog, $this>
      */
     public function activityLogs(): HasMany

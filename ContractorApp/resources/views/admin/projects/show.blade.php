@@ -130,20 +130,6 @@
             </x-card>
         @endif
 
-        {{-- Contacts --}}
-        @if ($project->dealers->isNotEmpty())
-            <x-card :title="'Contacts ('.$project->dealers->count().')'">
-                <ul class="list-unstyled mb-0">
-                    @foreach ($project->dealers as $dealer)
-                        <li class="{{ !$loop->first ? 'border-top pt-2 mt-2' : '' }}">
-                            <div class="fw-semibold">{{ $dealer->name }}</div>
-                            @if ($dealer->city) <div class="small text-muted">{{ $dealer->city }}</div> @endif
-                            @if ($dealer->phone) <div class="small"><a href="tel:{{ $dealer->phone }}">{{ $dealer->phone }}</a></div> @endif
-                        </li>
-                    @endforeach
-                </ul>
-            </x-card>
-        @endif
     </div>
 </div>
 @endsection

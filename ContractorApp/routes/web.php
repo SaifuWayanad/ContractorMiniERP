@@ -10,7 +10,12 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DealerController;
+use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProjectPaymentController;
+use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\VisitController;
 use App\Http\Controllers\WorkTypeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
@@ -62,9 +67,6 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         Route::patch('projects/{project}/meeting', [ProjectController::class, 'updateMeeting'])->name('projects.meeting');
         Route::post('projects/{project}/meetings', [ProjectMeetingController::class, 'store'])->name('projects.meetings.store');
         Route::delete('projects/{project}/meetings/{meeting}', [ProjectMeetingController::class, 'destroy'])->name('projects.meetings.destroy');
-        Route::post('projects/{project}/contacts', [ProjectController::class, 'addContact'])->name('projects.contacts.add');
-        Route::delete('projects/{project}/contacts/{dealer}', [ProjectController::class, 'removeContact'])->name('projects.contacts.remove');
-
         Route::get('locations', [ProjectLocationController::class, 'index'])->name('locations.index');
         Route::get('locations/create', [ProjectLocationController::class, 'chooseProject'])->name('locations.create');
         Route::get('projects/{project}/locations', [ProjectLocationController::class, 'forProject'])->name('projects.locations.index');
@@ -73,13 +75,25 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         Route::resource('works', WorkController::class);
         Route::patch('works/{work}/status', WorkStatusController::class)->name('works.status');
 
-        Route::resource('dealers', DealerController::class)->except('show');
+        Route::post('products/quick', [ProductController::class, 'quickStore'])->name('products.quick-store');
+        Route::resource('products', ProductController::class)->except('show');
+        Route::resource('purchases', PurchaseController::class)->except('show');
+        Route::resource('expenses', ExpenseController::class)->except('show');
+        Route::resource('payments', ProjectPaymentController::class)->except('show');
+
+        Route::get('reports/outstanding', [ReportController::class, 'outstanding'])->name('reports.outstanding');
+        Route::get('reports/customer-outstanding', [ReportController::class, 'customerOutstanding'])->name('reports.customer-outstanding');
+
+        Route::resource('visits', VisitController::class)->except('show');
+        Route::get('reports/customer-outstanding', [ReportController::class, 'customerOutstanding'])->name('reports.customer-outstanding');
+
+        Route::resource('visits', \App\Http\Controllers\VisitController::class)->except('show');
+
         Route::get('work-types', [WorkTypeController::class, 'index'])->name('work-types.index');
         Route::post('work-types', [WorkTypeController::class, 'store'])->name('work-types.store');
         Route::post('work-types/quick', [WorkTypeController::class, 'quickStore'])->name('work-types.quick');
         Route::put('work-types/{workType}', [WorkTypeController::class, 'update'])->name('work-types.update');
         Route::delete('work-types/{workType}', [WorkTypeController::class, 'destroy'])->name('work-types.destroy');
-        Route::post('dealers/quick', [DealerController::class, 'quickStore'])->name('dealers.quick');
     });
 
     /*
@@ -100,15 +114,8 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         Route::put('clients/{client}', [Admin\ClientController::class, 'update'])->name('clients.update');
         Route::delete('clients/{client}', [Admin\ClientController::class, 'destroy'])->name('clients.destroy');
         Route::get('projects', [Admin\ProjectController::class, 'index'])->name('projects.index');
-        Route::get('dealers', [Admin\DealerController::class, 'index'])->name('dealers.index');
-        Route::get('dealers/create', [Admin\DealerController::class, 'create'])->name('dealers.create');
-        Route::post('dealers', [Admin\DealerController::class, 'store'])->name('dealers.store');
-        Route::get('dealers/{dealer}/edit', [Admin\DealerController::class, 'edit'])->name('dealers.edit');
-        Route::put('dealers/{dealer}', [Admin\DealerController::class, 'update'])->name('dealers.update');
-        Route::delete('dealers/{dealer}', [Admin\DealerController::class, 'destroy'])->name('dealers.destroy');
         Route::get('projects/create', [Admin\ProjectController::class, 'create'])->name('projects.create');
         Route::post('projects', [Admin\ProjectController::class, 'store'])->name('projects.store');
-        Route::post('projects/quick-dealer', [Admin\ProjectController::class, 'quickDealer'])->name('projects.quick-dealer');
         Route::get('projects/{project}', [Admin\ProjectController::class, 'show'])->name('projects.show');
         Route::get('projects/{project}/edit', [Admin\ProjectController::class, 'edit'])->name('projects.edit');
         Route::put('projects/{project}', [Admin\ProjectController::class, 'update'])->name('projects.update');

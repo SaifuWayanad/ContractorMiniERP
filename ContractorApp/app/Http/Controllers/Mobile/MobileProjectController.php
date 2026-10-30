@@ -84,7 +84,7 @@ class MobileProjectController extends Controller
 
     public function show(Project $project): JsonResponse
     {
-        foreach (['client', 'dealers', 'locations', 'works.assignee:id,name', 'meetings.createdBy:id,name'] as $rel) {
+        foreach (['client', 'locations', 'works.assignee:id,name', 'meetings.createdBy:id,name'] as $rel) {
             try {
                 $project->load($rel);
             } catch (\Throwable) {
@@ -112,12 +112,6 @@ class MobileProjectController extends Controller
                 'phone' => $project->client?->phone,
                 'email' => $project->client?->email,
             ],
-            'dealers' => ($project->relationLoaded('dealers') ? $project->dealers : collect())->map(fn ($d) => [
-                'id' => $d->id,
-                'name' => $d->name,
-                'city' => $d->city,
-                'phone' => $d->phone,
-            ]),
             'locations' => ($project->relationLoaded('locations') ? $project->locations : collect())->map(fn ($l) => [
                 'id' => $l->id,
                 'name' => $l->name,
@@ -272,28 +266,6 @@ class MobileProjectController extends Controller
             ]);
 
         return response()->json($logs);
-    }
-
-    public function addContact(Request $request, Project $project): JsonResponse
-    {
-        $data = $request->validate([
-            'dealer_id' => ['required', 'integer', Rule::exists('dealers', 'id')->whereNull('deleted_at')],
-        ]);
-
-        $project->dealers()->syncWithoutDetaching([$data['dealer_id']]);
-
-        return response()->json(['message' => 'Contact added.']);
-    }
-
-    public function removeContact(Request $request, Project $project): JsonResponse
-    {
-        $data = $request->validate([
-            'dealer_id' => ['required', 'integer'],
-        ]);
-
-        $project->dealers()->detach($data['dealer_id']);
-
-        return response()->json(['message' => 'Contact removed.']);
     }
 
     public function destroy(Project $project): JsonResponse

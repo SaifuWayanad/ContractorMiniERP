@@ -25,9 +25,6 @@
             <thead>
                 <tr>
                     <th>Client Name</th>
-                    <th class="d-none d-lg-table-cell">Company</th>
-                    <th class="d-none d-md-table-cell">Contact Person</th>
-                    <th class="d-none d-xl-table-cell">Email</th>
                     <th class="d-none d-sm-table-cell">Phone</th>
                     <th class="text-center">Projects</th>
                     <th>Status</th>
@@ -40,12 +37,6 @@
                     <tr>
                         <td>
                             <a href="{{ route('clients.show', $client) }}" class="row-title">{{ $client->name }}</a>
-                            @if ($client->company) <div class="cell-sub d-lg-none">{{ $client->company }}</div> @endif
-                        </td>
-                        <td class="d-none d-lg-table-cell">{{ $client->company ?? '—' }}</td>
-                        <td class="d-none d-md-table-cell">{{ $client->contact_person ?? '—' }}</td>
-                        <td class="d-none d-xl-table-cell">
-                            @if ($client->email) <a href="mailto:{{ $client->email }}" class="text-decoration-none">{{ $client->email }}</a> @else — @endif
                         </td>
                         <td class="d-none d-sm-table-cell text-nowrap">
                             @if ($client->phone) <a href="tel:{{ $client->phone }}" class="text-decoration-none">{{ $client->phone }}</a> @else — @endif
@@ -60,10 +51,6 @@
                                     <li><a class="dropdown-item" href="{{ route('clients.show', $client) }}"><i class="bi bi-eye me-2"></i>View</a></li>
                                     @can('update', $client)
                                         <li><a class="dropdown-item" href="{{ route('clients.edit', $client) }}"><i class="bi bi-pencil me-2"></i>Edit</a></li>
-                                    @endcan
-                                    @can('delete', $client)
-                                        <li><hr class="dropdown-divider" /></li>
-                                        <li><x-delete-button :action="route('clients.destroy', $client)" class="dropdown-item text-danger" title="Delete this client?" :confirm="'Delete “'.$client->name.'”? Clients with projects cannot be deleted; set them to Inactive instead.'" /></li>
                                     @endcan
                                 </ul>
                             </div>

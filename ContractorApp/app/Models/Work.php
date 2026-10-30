@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['title', 'description', 'priority', 'status', 'start_date', 'due_date'])]
+#[Fillable(['title', 'description', 'priority', 'status', 'start_date', 'due_date', 'amount'])]
 class Work extends Model
 {
     /** @use HasFactory<WorkFactory> */
@@ -34,6 +34,7 @@ class Work extends Model
             'start_date' => 'date',
             'due_date' => 'date',
             'completed_at' => 'datetime',
+            'amount' => 'decimal:2',
         ];
     }
 

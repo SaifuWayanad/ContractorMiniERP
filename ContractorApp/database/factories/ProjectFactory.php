@@ -23,7 +23,6 @@ class ProjectFactory extends Factory
         return [
             'contractor_id' => Contractor::factory(),
             'client_id' => fn (array $attributes) => Client::factory()->state(['contractor_id' => $attributes['contractor_id']]),
-            'dealer_id' => null,
             'name' => fake()->streetName().' Residency',
             'project_number' => 'PRJ-'.fake()->unique()->numerify('#####'),
             'type_of_work' => fake()->randomElement(['Residential – House', 'Residential – Apartment', 'Commercial – Office', 'Renovation']),
@@ -35,7 +34,6 @@ class ProjectFactory extends Factory
             'budget' => fake()->numberBetween(5, 500) * 10000,
             'brand_preferred' => fake()->randomElement(['UltraTech', 'ACC', 'Ramco', null]),
             'expected_qty' => fake()->numberBetween(100, 20000),
-            'expected_maturity_date' => today()->addDays(fake()->numberBetween(40, 120)),
             'specification_details' => null,
             'notes' => null,
         ];

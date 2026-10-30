@@ -9,10 +9,6 @@
         <li class="breadcrumb-item active" aria-current="page">{{ $client->name }}</li>
     </x-slot:breadcrumbs>
     <x-slot:actions>
-        <x-status-badge :status="$client->status" />
-        @can('delete', $client)
-            <x-delete-button :action=”route('clients.destroy', $client)” title=”Delete this client?” :confirm=”'Delete “'.$client->name.'”? Clients with projects cannot be deleted; set them to Inactive instead.'” />
-        @endcan
         @can('update', $client)
             <a href="{{ route('clients.edit', $client) }}" class="btn btn-primary btn-sm"><i class="bi bi-pencil me-1"></i>Edit</a>
         @endcan
@@ -75,7 +71,7 @@
         <x-table-card :title="'Projects ('.$projects->count().')'">
             <x-slot:headerActions>
                 @can('create', App\Models\Project::class)
-                    <a href="{{ route('projects.create', ['client_id' => $client->id]) }}" class="card-link"><i class="bi bi-plus-lg"></i> New project</a>
+                    <a href="{{ route('projects.create', ['client_id' => $client->id]) }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New project</a>
                 @endcan
             </x-slot:headerActions>
             @if ($projects->isEmpty())

@@ -7,12 +7,12 @@
             <x-form.textarea name="description" label="Description" :value="$work->description" rows="3" maxlength="5000" />
         </x-form.section>
 
-        <x-form.section title="Assignment & Schedule">
-            <x-form.select name="assigned_to" label="Assigned To" :options="$assignees" :value="$work->assigned_to" placeholder="Unassigned" />
+        <x-form.section title="Schedule & Details">
             <x-form.select name="priority" label="Priority" :options="App\Enums\WorkPriority::options()" :value="$work->priority" :required="true" />
             <x-form.select name="status" label="Status" :options="App\Enums\WorkStatus::options()" :value="$work->status" :required="true" />
             <x-form.input name="start_date" label="Start Date" type="date" :value="$work->start_date?->format('Y-m-d')" />
             <x-form.input name="due_date" label="Due Date" type="date" :value="$work->due_date?->format('Y-m-d')" />
+            <x-form.input name="amount" label="Amount (₹)" type="number" step="0.01" min="0" :value="$work->amount ?? ''" col="col-md-4" />
         </x-form.section>
     </div>
 </div>

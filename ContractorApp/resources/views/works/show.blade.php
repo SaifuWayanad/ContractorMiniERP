@@ -37,7 +37,9 @@
                 <dt>Priority</dt><dd><x-status-badge :status="$work->priority" /></dd>
                 <dt>Project</dt><dd><a href="{{ route('projects.show', $work->project) }}">{{ $work->project->name }}</a></dd>
                 <dt>Client</dt><dd>@if ($work->client)<a href="{{ route('clients.show', $work->client) }}">{{ $work->client->name }}</a>@else — @endif</dd>
-                <dt>Assigned to</dt><dd>{{ $work->assignee?->name ?? 'Unassigned' }}</dd>
+                @if ($work->amount !== null)
+                <dt>Amount</dt><dd>₹{{ number_format((float)$work->amount, 2) }}</dd>
+                @endif
             </dl>
         </x-card>
         @if ($work->description)

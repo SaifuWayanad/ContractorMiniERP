@@ -6,8 +6,12 @@ use App\Enums\ProjectStatus;
 use App\Enums\WorkStatus;
 use App\Models\ActivityLog;
 use App\Models\Client;
+use App\Models\Expense;
 use App\Models\Project;
 use App\Models\ProjectLocation;
+use App\Models\ProjectPayment;
+use App\Models\Purchase;
+use App\Models\Visit;
 use App\Models\Work;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
@@ -45,6 +49,12 @@ class DashboardService
             ->selectRaw('sum(case when created_at between ? and ? then 1 else 0 end) as created_in_period', $period->range())
             ->first();
 
+        $purchaseValue  = (float) Purchase::forContractor($contractorId)->sum('line_total');
+        $totalExpenses  = (float) Expense::forContractor($contractorId)->sum('amount');
+        $totalReceipts  = (float) ProjectPayment::forContractor($contractorId)->sum('amount_received');
+        $totalBudget    = (float) Project::forContractor($contractorId)->sum('budget');
+        $outstanding    = $totalBudget - $totalReceipts;
+
         return [
             'clients' => Client::forContractor($contractorId)->count(),
             'projects' => (int) $projectCounts->total,
@@ -56,6 +66,10 @@ class DashboardService
             'new_projects' => (int) $projectCounts->created_in_period,
             'works_completed' => Work::forContractor($contractorId)->whereBetween('completed_at', $period->range())->count(),
             'projects_completed' => Project::forContractor($contractorId)->where('status', ProjectStatus::Completed)->whereBetween('actual_end_date', $period->range())->count(),
+            'purchase_value' => $purchaseValue,
+            'total_expenses' => $totalExpenses,
+            'total_receipts' => $totalReceipts,
+            'outstanding'    => $outstanding,
         ];
     }
 
@@ -190,33 +204,33 @@ class DashboardService
     }
 
     /**
-     * Projects with a meeting scheduled for today.
+     * Visits with a next meeting scheduled for today.
      *
-     * @return Collection<int, Project>
+     * @return Collection<int, Visit>
      */
     public function todaysMeetings(int $contractorId): Collection
     {
-        return Project::forContractor($contractorId)
+        return Visit::forContractor($contractorId)
             ->with('client:id,name')
-            ->whereDate('next_meeting_at', today())
-            ->orderBy('next_meeting_at')
-            ->get();
+            ->whereDate('next_meeting_date', today())
+            ->orderBy('next_meeting_date')
+            ->get(['id', 'client_id', 'purpose', 'location', 'next_meeting_date']);
     }
 
     /**
-     * Projects with a meeting scheduled from tomorrow onwards (next 30 days), soonest first.
+     * Visits with a next meeting scheduled from tomorrow onwards (next 30 days), soonest first.
      *
-     * @return Collection<int, Project>
+     * @return Collection<int, Visit>
      */
     public function upcomingMeetings(int $contractorId, int $limit = 6): Collection
     {
-        return Project::forContractor($contractorId)
+        return Visit::forContractor($contractorId)
             ->with('client:id,name')
-            ->where('next_meeting_at', '>', now()->endOfDay())
-            ->where('next_meeting_at', '<=', now()->addDays(30))
-            ->orderBy('next_meeting_at')
+            ->where('next_meeting_date', '>', today())
+            ->where('next_meeting_date', '<=', today()->addDays(30))
+            ->orderBy('next_meeting_date')
             ->limit($limit)
-            ->get();
+            ->get(['id', 'client_id', 'purpose', 'location', 'next_meeting_date']);
     }
 
     /**

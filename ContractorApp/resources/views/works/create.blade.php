@@ -21,6 +21,8 @@
 @else
     <form method="post" action="{{ route('works.store') }}">
         @csrf
+        <input type="hidden" name="from" value="{{ request('from') }}">
+        <input type="hidden" name="from_project_id" value="{{ request('project_id') }}">
         @include('works.form')
         <x-form.actions :cancel="route('works.index')" submit="Create Work" />
     </form>
