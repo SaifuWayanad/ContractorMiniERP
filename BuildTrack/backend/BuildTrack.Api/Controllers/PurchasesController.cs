@@ -38,6 +38,9 @@ public class PurchasesController : BaseController
         if (!includeArchived)
             query = query.Where(p => !p.IsArchived);
 
+        if (!IsAdmin)
+            query = query.Where(p => p.Project.AssignedUserId == CurrentUserId);
+
         if (projectId.HasValue)
             query = query.Where(p => p.ProjectId == projectId.Value);
 
@@ -126,7 +129,9 @@ public class PurchasesController : BaseController
             PurchaseDate = request.PurchaseDate,
             Quantity = request.Quantity,
             UnitAmount = request.UnitAmount,
-            LineTotal = request.Quantity * request.UnitAmount,
+            LineTotal = request.LineTotal.HasValue && request.LineTotal.Value > 0
+                ? request.LineTotal.Value
+                : request.Quantity * request.UnitAmount,
             Supplier = request.Supplier,
             InvoiceReference = request.InvoiceReference,
             Notes = request.Notes,
@@ -161,7 +166,9 @@ public class PurchasesController : BaseController
         purchase.PurchaseDate = request.PurchaseDate;
         purchase.Quantity = request.Quantity;
         purchase.UnitAmount = request.UnitAmount;
-        purchase.LineTotal = request.Quantity * request.UnitAmount;
+        purchase.LineTotal = request.LineTotal.HasValue && request.LineTotal.Value > 0
+            ? request.LineTotal.Value
+            : request.Quantity * request.UnitAmount;
         purchase.Supplier = request.Supplier;
         purchase.InvoiceReference = request.InvoiceReference;
         purchase.Notes = request.Notes;

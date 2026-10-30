@@ -28,6 +28,9 @@ public class LocationsController : BaseController
     {
         var query = _db.Locations.AsQueryable();
 
+        if (!IsAdmin)
+            query = query.Where(l => l.CreatedByUserId == CurrentUserId);
+
         if (!includeArchived)
             query = query.Where(l => !l.IsArchived);
 
@@ -61,7 +64,7 @@ public class LocationsController : BaseController
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var location = await _db.Locations.FindAsync(id);
+        var location = await _db.Locations.FirstOrDefaultAsync(l => l.Id == id);
         if (location == null) return NotFound();
 
         return Ok(new LocationDto
@@ -89,6 +92,7 @@ public class LocationsController : BaseController
             Address = request.Address,
             City = request.City,
             Notes = request.Notes,
+            CreatedByUserId = CurrentUserId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -118,6 +122,9 @@ public class LocationsController : BaseController
         var location = await _db.Locations.FindAsync(id);
         if (location == null) return NotFound();
 
+        if (!IsAdmin && location.CreatedByUserId != CurrentUserId)
+            return Conflict(new { message = "You can only edit locations you created." });
+
         location.LocationName = request.LocationName;
         location.Address = request.Address;
         location.City = request.City;
@@ -135,11 +142,19 @@ public class LocationsController : BaseController
         var location = await _db.Locations.FindAsync(id);
         if (location == null) return NotFound();
 
-        var isUsed = await _db.Customers.AnyAsync(c => c.LocationId == id && !c.IsArchived)
-            || await _db.Projects.AnyAsync(p => p.LocationId == id && !p.IsArchived);
+        if (!IsAdmin && location.CreatedByUserId != CurrentUserId)
+            return Conflict(new { message = "You can only delete locations you created." });
 
-        if (isUsed)
-            return Conflict(new { message = "Cannot delete location currently in use by customers or projects." });
+        var usedByProjects = await _db.Projects.Where(p => p.LocationId == id && !p.IsArchived).Select(p => p.ProjectName).ToListAsync();
+        var usedByCustomers = await _db.Customers.AnyAsync(c => c.LocationId == id && !c.IsArchived);
+
+        if (usedByProjects.Any() || usedByCustomers)
+        {
+            var detail = usedByProjects.Any()
+                ? $"This location is used in {usedByProjects.Count} project(s): {string.Join(", ", usedByProjects.Take(3))}{(usedByProjects.Count > 3 ? "…" : "")}. Remove it from those projects first."
+                : "This location is linked to one or more customers. Remove it from those customers first.";
+            return Conflict(new { message = detail });
+        }
 
         location.IsArchived = true;
         location.UpdatedAt = DateTime.UtcNow;

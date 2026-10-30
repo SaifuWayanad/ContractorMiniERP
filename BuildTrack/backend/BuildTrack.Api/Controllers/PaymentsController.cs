@@ -36,6 +36,9 @@ public class PaymentsController : BaseController
         if (!includeVoided)
             query = query.Where(cp => !cp.IsVoided);
 
+        if (!IsAdmin)
+            query = query.Where(cp => cp.Project.AssignedUserId == CurrentUserId);
+
         if (projectId.HasValue)
             query = query.Where(cp => cp.ProjectId == projectId.Value);
 

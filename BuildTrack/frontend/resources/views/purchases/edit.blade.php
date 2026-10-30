@@ -82,22 +82,24 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Quantity <span class="text-danger">*</span></label>
+                            <label class="form-label fw-semibold">Quantity</label>
                             <input type="number" step="0.01" name="quantity" id="qtyInput" class="form-control @error('quantity') is-invalid @enderror"
-                                value="{{ old('quantity', $purchase['quantity'] ?? '') }}" required>
+                                value="{{ old('quantity', $purchase['quantity'] ?? '') }}">
                             @error('quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Unit Rate <span class="text-danger">*</span></label>
+                            <label class="form-label fw-semibold">Unit Rate</label>
                             <input type="number" step="0.01" name="unitRate" id="rateInput" class="form-control @error('unitRate') is-invalid @enderror"
-                                value="{{ old('unitRate', $purchase['unitAmount'] ?? '') }}" required>
+                                value="{{ old('unitRate', $purchase['unitAmount'] ?? '') }}">
                             @error('unitRate')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Line Total</label>
-                            <input type="text" id="lineTotalDisplay" class="form-control bg-light fw-bold" readonly>
+                            <input type="number" step="0.01" name="lineTotal" id="lineTotalDisplay" class="form-control fw-bold"
+                                value="{{ old('lineTotal', $purchase['lineTotal'] ?? '') }}">
+                            <small class="text-muted">Auto-calculated; you can override</small>
                         </div>
 
                         <div class="col-md-6">
@@ -121,9 +123,15 @@
                         </div>
                     </div>
 
+                    <input type="hidden" name="from" value="{{ $from ?? '' }}">
+                    <input type="hidden" name="fromProjectId" value="{{ $fromProjectId ?? '' }}">
                     <div class="mt-4 d-flex gap-2">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-2"></i>Update Purchase</button>
-                        <a href="{{ route('purchases.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                        @if(!empty($from) && $from === 'project' && !empty($fromProjectId))
+                            <a href="{{ route('projects.show', $fromProjectId) }}" class="btn btn-outline-secondary">Cancel</a>
+                        @else
+                            <a href="{{ route('purchases.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                        @endif
                     </div>
                 </form>
             </div>

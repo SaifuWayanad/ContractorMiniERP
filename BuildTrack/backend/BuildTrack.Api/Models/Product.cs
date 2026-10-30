@@ -8,9 +8,11 @@ public class Product
     public decimal? DefaultUnitRate { get; set; }
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
+    public int? CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
     // Navigation
+    public User? CreatedByUser { get; set; }
     public ICollection<Purchase> Purchases { get; set; } = new List<Purchase>();
 }

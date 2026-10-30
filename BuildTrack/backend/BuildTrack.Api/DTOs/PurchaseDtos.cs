@@ -32,10 +32,9 @@ public class CreatePurchaseRequest
     public int ProductId { get; set; }
     [Required]
     public DateTime PurchaseDate { get; set; }
-    [Required]
     public decimal Quantity { get; set; }
-    [Required]
     public decimal UnitAmount { get; set; }
+    public decimal? LineTotal { get; set; }
     [MaxLength(200)]
     public string Supplier { get; set; } = string.Empty;
     [MaxLength(100)]
@@ -51,10 +50,9 @@ public class UpdatePurchaseRequest
     public int ProductId { get; set; }
     [Required]
     public DateTime PurchaseDate { get; set; }
-    [Required]
     public decimal Quantity { get; set; }
-    [Required]
     public decimal UnitAmount { get; set; }
+    public decimal? LineTotal { get; set; }
     [MaxLength(200)]
     public string Supplier { get; set; } = string.Empty;
     [MaxLength(100)]

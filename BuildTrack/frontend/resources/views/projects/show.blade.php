@@ -142,7 +142,7 @@
                     <dt class="col-sm-4 text-muted">Start Date</dt>
                     <dd class="col-sm-8">{{ isset($project['startDate']) ? date('d M Y', strtotime($project['startDate'])) : '—' }}</dd>
 
-                    <dt class="col-sm-4 text-muted">End Date</dt>
+                    <dt class="col-sm-4 text-muted">Expected End Date</dt>
                     <dd class="col-sm-8">{{ isset($project['endDate']) ? date('d M Y', strtotime($project['endDate'])) : '—' }}</dd>
 
                     @if(!empty($project['description']))
@@ -158,7 +158,7 @@
     <div class="tab-pane fade" id="purchases">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
             <h6 class="mb-0">Purchases</h6>
-            <a href="{{ route('purchases.create', ['projectId' => $projectId]) }}" class="btn btn-sm btn-primary">
+            <a href="{{ route('purchases.create', ['projectId' => $projectId, 'from' => 'project']) }}" class="btn btn-sm btn-primary">
                 <i class="bi bi-plus-circle me-1"></i>Add Purchase
             </a>
         </div>
@@ -177,7 +177,7 @@
                             <td class="text-end">{{ isset($p['unitAmount']) ? number_format((float)$p['unitAmount'], 2) : '—' }}</td>
                             <td class="text-end fw-semibold">{{ isset($p['lineTotal']) ? number_format((float)$p['lineTotal'], 2) : (isset($p['quantity'], $p['unitAmount']) ? number_format((float)$p['quantity'] * (float)$p['unitAmount'], 2) : '—') }}</td>
                             <td class="text-center">
-                                <a href="{{ route('purchases.edit', $p['id']) }}" class="btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                                <a href="{{ route('purchases.edit', $p['id']) }}?from=project&projectId={{ $projectId }}" class="btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
                             </td>
                         </tr>
                         @endforeach
@@ -191,7 +191,7 @@
     <div class="tab-pane fade" id="expenses">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
             <h6 class="mb-0">Expenses</h6>
-            <a href="{{ route('expenses.create', ['projectId' => $projectId]) }}" class="btn btn-sm btn-primary">
+            <a href="{{ route('expenses.create', ['projectId' => $projectId, 'from' => 'project']) }}" class="btn btn-sm btn-primary">
                 <i class="bi bi-plus-circle me-1"></i>Add Expense
             </a>
         </div>
@@ -208,7 +208,7 @@
                             <td>{{ $e['expenseHeading'] ?? '—' }}</td>
                             <td class="text-end">{{ isset($e['amount']) ? number_format((float)$e['amount'], 2) : '—' }}</td>
                             <td class="text-center">
-                                <a href="{{ route('expenses.edit', $e['id']) }}" class="btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                                <a href="{{ route('expenses.edit', $e['id']) }}?from=project&projectId={{ $projectId }}" class="btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
                             </td>
                         </tr>
                         @endforeach
@@ -222,7 +222,7 @@
     <div class="tab-pane fade" id="payments">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
             <h6 class="mb-0">Payments Received</h6>
-            <a href="{{ route('payments.create', ['projectId' => $projectId]) }}" class="btn btn-sm btn-primary">
+            <a href="{{ route('payments.create', ['projectId' => $projectId, 'from' => 'project']) }}" class="btn btn-sm btn-primary">
                 <i class="bi bi-plus-circle me-1"></i>Add Payment
             </a>
         </div>
@@ -239,7 +239,7 @@
                             <td class="text-end">{{ isset($p['amountReceived']) ? number_format((float)$p['amountReceived'], 2) : '—' }}</td>
                             <td>{{ $p['paymentMethod'] ?? '—' }}</td>
                             <td class="text-center">
-                                <a href="{{ route('payments.edit', $p['id']) }}" class="btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                                <a href="{{ route('payments.edit', $p['id']) }}?from=project&projectId={{ $projectId }}" class="btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
                             </td>
                         </tr>
                         @endforeach

@@ -33,6 +33,9 @@ public class CustomersController : BaseController
         if (!includeArchived)
             query = query.Where(c => !c.IsArchived);
 
+        if (!IsAdmin)
+            query = query.Where(c => c.CreatedByUserId == CurrentUserId);
+
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(c =>
                 c.CustomerName.Contains(search) ||
@@ -65,9 +68,9 @@ public class CustomersController : BaseController
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var customer = await _db.Customers
-            .Include(c => c.Location)
-            .FirstOrDefaultAsync(c => c.Id == id);
+        var query = _db.Customers.Include(c => c.Location).AsQueryable();
+        if (!IsAdmin) query = query.Where(c => c.CreatedByUserId == CurrentUserId);
+        var customer = await query.FirstOrDefaultAsync(c => c.Id == id);
 
         if (customer == null) return NotFound();
 
@@ -99,6 +102,7 @@ public class CustomersController : BaseController
             Address = request.Address,
             LocationId = request.LocationId,
             Notes = request.Notes,
+            CreatedByUserId = CurrentUserId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -172,6 +176,9 @@ public class CustomersController : BaseController
 
         if (!includeArchived)
             query = query.Where(p => !p.IsArchived);
+
+        if (!IsAdmin)
+            query = query.Where(p => p.AssignedUserId == CurrentUserId);
 
         var projects = await query
             .OrderByDescending(p => p.CreatedAt)

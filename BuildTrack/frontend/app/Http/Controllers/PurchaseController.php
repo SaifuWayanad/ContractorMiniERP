@@ -64,6 +64,7 @@ class PurchaseController extends Controller
                 'purchaseDate'     => $r['date'] ?? null,
                 'quantity'         => isset($r['quantity']) ? (float)$r['quantity'] : 0,
                 'unitAmount'       => isset($r['unitRate']) ? (float)$r['unitRate'] : 0,
+                'lineTotal'        => isset($r['lineTotal']) && $r['lineTotal'] !== '' ? (float)$r['lineTotal'] : null,
                 'supplier'         => $r['supplier'] ?? '',
                 'invoiceReference' => $r['reference'] ?: null,
                 'notes'            => $r['notes'] ?: null,
@@ -77,9 +78,8 @@ class PurchaseController extends Controller
                 return back()->withErrors(['error' => $result['conflict']])->withInput();
             }
 
-            $projectId = $result['projectId'] ?? $request->input('projectId');
-            if ($projectId) {
-                return redirect()->route('projects.show', $projectId)->with('success', 'Purchase recorded successfully.');
+            if (($r['from'] ?? '') === 'project' && !empty($r['fromProjectId'])) {
+                return redirect()->route('projects.show', (int)$r['fromProjectId'])->with('success', 'Purchase recorded successfully.');
             }
             return redirect()->route('purchases.index')->with('success', 'Purchase recorded successfully.');
         } catch (AuthException $e) {
@@ -89,7 +89,7 @@ class PurchaseController extends Controller
         }
     }
 
-    public function edit(int $id)
+    public function edit(int $id, Request $request)
     {
         $api = $this->api();
         $purchase = [];
@@ -106,7 +106,9 @@ class PurchaseController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return view('purchases.edit', compact('purchase', 'projects', 'products'));
+        $from = $request->query('from', '');
+        $fromProjectId = $request->query('projectId', $purchase['projectId'] ?? '');
+        return view('purchases.edit', compact('purchase', 'projects', 'products', 'from', 'fromProjectId'));
     }
 
     public function update(Request $request, int $id)
@@ -121,6 +123,7 @@ class PurchaseController extends Controller
                 'purchaseDate'     => $r['date'] ?? null,
                 'quantity'         => isset($r['quantity']) ? (float)$r['quantity'] : 0,
                 'unitAmount'       => isset($r['unitRate']) ? (float)$r['unitRate'] : 0,
+                'lineTotal'        => isset($r['lineTotal']) && $r['lineTotal'] !== '' ? (float)$r['lineTotal'] : null,
                 'supplier'         => $r['supplier'] ?? '',
                 'invoiceReference' => $r['reference'] ?: null,
                 'notes'            => $r['notes'] ?: null,
@@ -135,6 +138,9 @@ class PurchaseController extends Controller
                 return back()->withErrors(['error' => $result['conflict']])->withInput();
             }
 
+            if (($r['from'] ?? '') === 'project' && !empty($r['fromProjectId'])) {
+                return redirect()->route('projects.show', (int)$r['fromProjectId'])->with('success', 'Purchase updated successfully.');
+            }
             return redirect()->route('purchases.index')->with('success', 'Purchase updated successfully.');
         } catch (AuthException $e) {
             return redirect()->route('login')->with('error', 'Session expired, please log in again');

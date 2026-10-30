@@ -28,10 +28,7 @@ public class ProjectsController : BaseController
         [FromQuery] int pageSize = 20,
         [FromQuery] bool includeArchived = false)
     {
-        // When filtering by customer, show all that customer's projects (not just assigned ones)
-        var baseQuery = customerId.HasValue
-            ? _db.Projects.AsQueryable().Where(p => includeArchived || !p.IsArchived)
-            : ScopeProjects(_db.Projects, includeArchived);
+        var baseQuery = ScopeProjects(_db.Projects, includeArchived);
 
         IQueryable<Project> query = baseQuery
             .Include(p => p.Customer)
@@ -82,11 +79,13 @@ public class ProjectsController : BaseController
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var project = await _db.Projects
+        var query = _db.Projects
             .Include(p => p.Customer)
             .Include(p => p.Location)
             .Include(p => p.AssignedUser)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .AsQueryable();
+        if (!IsAdmin) query = query.Where(p => p.AssignedUserId == CurrentUserId);
+        var project = await query.FirstOrDefaultAsync(p => p.Id == id);
 
         if (project == null) return NotFound();
 
@@ -116,6 +115,10 @@ public class ProjectsController : BaseController
     {
         if (!ModelState.IsValid)
             return ValidationProblem(ModelState);
+
+        var duplicate = await _db.Projects.AnyAsync(p => p.ProjectName == request.ProjectName && !p.IsArchived);
+        if (duplicate)
+            return Conflict(new { message = $"A project named '{request.ProjectName}' already exists." });
 
         var project = new Project
         {

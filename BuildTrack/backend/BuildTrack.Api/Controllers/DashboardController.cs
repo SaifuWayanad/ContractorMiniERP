@@ -21,17 +21,15 @@ public class DashboardController : BaseController
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        IEnumerable<int>? visibleProjectIds = null;
+        var projectsBase = _db.Projects.Where(p => !p.IsArchived);
+        if (!IsAdmin) projectsBase = projectsBase.Where(p => p.AssignedUserId == CurrentUserId);
 
-        var totalProjects = visibleProjectIds != null
-            ? visibleProjectIds.Count()
-            : await _db.Projects.CountAsync(p => !p.IsArchived);
+        var totalProjects = await projectsBase.CountAsync();
 
         int totalCustomers;
-        if (visibleProjectIds != null)
+        if (!IsAdmin)
         {
-            var myCustomerIds = await _db.Projects
-                .Where(p => visibleProjectIds.Contains(p.Id))
+            var myCustomerIds = await projectsBase
                 .Select(p => p.CustomerId)
                 .Distinct()
                 .ToListAsync();
@@ -41,6 +39,10 @@ public class DashboardController : BaseController
         {
             totalCustomers = await _db.Customers.CountAsync(c => !c.IsArchived);
         }
+
+        var visibleProjectIds = IsAdmin
+            ? null
+            : await projectsBase.Select(p => p.Id).ToListAsync();
 
         var purchaseQuery = _db.Purchases.Where(p => !p.IsArchived);
         if (visibleProjectIds != null) purchaseQuery = purchaseQuery.Where(p => visibleProjectIds.Contains(p.ProjectId));
@@ -60,8 +62,8 @@ public class DashboardController : BaseController
             .Where(p => !p.IsArchived)
             .Include(p => p.Customer)
             .AsQueryable();
-        if (visibleProjectIds != null)
-            recentProjectsQuery = recentProjectsQuery.Where(p => visibleProjectIds.Contains(p.Id));
+        if (!IsAdmin)
+            recentProjectsQuery = recentProjectsQuery.Where(p => p.AssignedUserId == CurrentUserId);
 
         var recentProjects = await recentProjectsQuery
             .OrderByDescending(p => p.CreatedAt)

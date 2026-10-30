@@ -30,13 +30,16 @@ public class ReportsController : BaseController
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        var query = _db.Projects
-            .Include(p => p.Customer)
-            .Include(p => p.Location)
-            .AsQueryable();
-
-        // Status filter: default = active only
         var showArchived = includeArchived ?? false;
+
+        IQueryable<BuildTrack.Api.Models.Project> query = _db.Projects
+            .Include(p => p.Customer)
+            .Include(p => p.Location);
+
+        // Admin sees all projects; contractors see only their own assigned projects
+        if (!IsAdmin)
+            query = query.Where(p => p.AssignedUserId == CurrentUserId);
+
         if (!showArchived)
             query = query.Where(p => !p.IsArchived);
 

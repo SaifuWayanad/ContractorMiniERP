@@ -33,6 +33,9 @@ namespace BuildTrack.Api.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValueSql("datetime('now')");
 
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("CustomerName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -58,6 +61,8 @@ namespace BuildTrack.Api.Migrations
                         .HasDefaultValueSql("datetime('now')");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("LocationId");
 
@@ -189,6 +194,9 @@ namespace BuildTrack.Api.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValueSql("datetime('now')");
 
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsArchived")
                         .HasColumnType("INTEGER");
 
@@ -207,6 +215,8 @@ namespace BuildTrack.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedByUserId");
+
                     b.ToTable("Locations");
                 });
 
@@ -220,6 +230,9 @@ namespace BuildTrack.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
                         .HasDefaultValueSql("datetime('now')");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<decimal?>("DefaultUnitRate")
                         .HasColumnType("decimal(18,2)");
@@ -246,6 +259,8 @@ namespace BuildTrack.Api.Migrations
                         .HasDefaultValueSql("datetime('now')");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
 
                     b.ToTable("Products");
                 });
@@ -424,10 +439,17 @@ namespace BuildTrack.Api.Migrations
 
             modelBuilder.Entity("BuildTrack.Api.Models.Customer", b =>
                 {
+                    b.HasOne("BuildTrack.Api.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("BuildTrack.Api.Models.Location", "Location")
                         .WithMany("Customers")
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedByUser");
 
                     b.Navigation("Location");
                 });
@@ -452,6 +474,26 @@ namespace BuildTrack.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("BuildTrack.Api.Models.Location", b =>
+                {
+                    b.HasOne("BuildTrack.Api.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("BuildTrack.Api.Models.Product", b =>
+                {
+                    b.HasOne("BuildTrack.Api.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedByUser");
                 });
 
             modelBuilder.Entity("BuildTrack.Api.Models.Project", b =>

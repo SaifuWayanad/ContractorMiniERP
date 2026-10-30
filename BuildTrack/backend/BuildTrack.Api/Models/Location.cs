@@ -8,10 +8,12 @@ public class Location
     public string City { get; set; } = string.Empty;
     public string? Notes { get; set; }
     public bool IsArchived { get; set; } = false;
+    public int? CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
     // Navigation
+    public User? CreatedByUser { get; set; }
     public ICollection<Customer> Customers { get; set; } = new List<Customer>();
     public ICollection<Project> Projects { get; set; } = new List<Project>();
 }

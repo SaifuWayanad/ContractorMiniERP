@@ -36,7 +36,7 @@
                             <th>Date</th>
                             <th>Project</th>
                             <th>Customer</th>
-                            <th>Heading</th>
+                            <th>Expense</th>
                             <th class="text-end">Amount</th>
                             <th class="text-center">Actions</th>
                         </tr>

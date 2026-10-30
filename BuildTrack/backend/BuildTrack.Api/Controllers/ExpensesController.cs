@@ -37,6 +37,9 @@ public class ExpensesController : BaseController
         if (!includeArchived)
             query = query.Where(e => !e.IsArchived);
 
+        if (!IsAdmin)
+            query = query.Where(e => e.Project.AssignedUserId == CurrentUserId);
+
         if (projectId.HasValue)
             query = query.Where(e => e.ProjectId == projectId.Value);
 

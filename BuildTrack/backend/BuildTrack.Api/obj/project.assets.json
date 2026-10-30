@@ -3421,11 +3421,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/thasna/Personal/BuildTrack/backend/BuildTrack.Api/BuildTrack.Api.csproj",
+      "projectUniqueName": "/Users/thasna/Personal/Apps/ContractorMiniERP/BuildTrack/backend/BuildTrack.Api/BuildTrack.Api.csproj",
       "projectName": "BuildTrack.Api",
-      "projectPath": "/Users/thasna/Personal/BuildTrack/backend/BuildTrack.Api/BuildTrack.Api.csproj",
+      "projectPath": "/Users/thasna/Personal/Apps/ContractorMiniERP/BuildTrack/backend/BuildTrack.Api/BuildTrack.Api.csproj",
       "packagesPath": "/Users/thasna/.nuget/packages/",
-      "outputPath": "/Users/thasna/Personal/BuildTrack/backend/BuildTrack.Api/obj/",
+      "outputPath": "/Users/thasna/Personal/Apps/ContractorMiniERP/BuildTrack/backend/BuildTrack.Api/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/thasna/.nuget/NuGet/NuGet.Config"

@@ -31,6 +31,9 @@ public class ProductsController : BaseController
         if (!includeArchived)
             query = query.Where(p => p.IsActive);
 
+        if (!IsAdmin)
+            query = query.Where(p => p.CreatedByUserId == CurrentUserId);
+
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(p =>
                 p.ProductName.Contains(search) ||
@@ -60,7 +63,9 @@ public class ProductsController : BaseController
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var product = await _db.Products.FindAsync(id);
+        var query = _db.Products.AsQueryable();
+        if (!IsAdmin) query = query.Where(p => p.CreatedByUserId == CurrentUserId);
+        var product = await query.FirstOrDefaultAsync(p => p.Id == id);
         if (product == null) return NotFound();
 
         return Ok(new ProductDto
@@ -89,6 +94,7 @@ public class ProductsController : BaseController
             DefaultUnitRate = request.DefaultUnitRate,
             Description = request.Description,
             IsActive = true,
+            CreatedByUserId = CurrentUserId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

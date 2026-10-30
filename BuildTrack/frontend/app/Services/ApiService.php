@@ -56,6 +56,11 @@ class ApiService
             return ['errors' => $errors];
         }
 
+        if ($response->status() === 403) {
+            $body = $response->json();
+            return ['conflict' => $body['message'] ?? $body['detail'] ?? 'You do not have permission to perform this action.'];
+        }
+
         if ($response->status() === 409) {
             $body = $response->json();
             return ['conflict' => $body['message'] ?? 'A conflict occurred'];

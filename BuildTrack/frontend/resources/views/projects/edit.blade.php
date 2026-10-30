@@ -24,11 +24,8 @@
 
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Budget</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" step="0.01" name="budget" class="form-control @error('budget') is-invalid @enderror" value="{{ old('budget', $project['budget'] ?? '') }}">
-                                @error('budget')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            </div>
+                            <input type="number" step="0.01" name="budget" class="form-control @error('budget') is-invalid @enderror" value="{{ old('budget', $project['budget'] ?? '') }}">
+                            @error('budget')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
                         <div class="col-md-6">
@@ -45,7 +42,7 @@
                                         @php $customerItems = $customers['items'] ?? $customers['data'] ?? []; @endphp
                                         @forelse($customerItems as $cust)
                                             @php $c = is_array($cust) ? $cust : []; @endphp
-                                            <div class="cs-item" data-value="{{ $c['id'] ?? '' }}">{{ $c['customerName'] ?? '' }}</div>
+                                            <div class="cs-item" data-value="{{ $c['id'] ?? '' }}" data-location-id="{{ $c['locationId'] ?? '' }}" data-location-name="{{ $c['locationName'] ?? '' }}">{{ $c['customerName'] ?? '' }}</div>
                                         @empty
                                             <div class="cs-item no-data">No customers available</div>
                                         @endforelse
@@ -104,7 +101,7 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">End Date</label>
+                            <label class="form-label fw-semibold">Expected End Date</label>
                             <input type="date" name="endDate" id="endDate" class="form-control @error('endDate') is-invalid @enderror" value="{{ old('endDate', $project['endDate'] ?? '') }}">
                             @error('endDate')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
@@ -212,6 +209,19 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute
 
 new CustomSelect('customerSelectWrapper');
 new CustomSelect('locationSelectWrapper');
+
+// Auto-fill location when customer is changed
+document.getElementById('customerSelectInput').addEventListener('change', function() {
+    const cs = csRegistry['customerSelectWrapper'];
+    if (!cs) return;
+    const selected = cs.list.querySelector('.cs-item.selected');
+    if (!selected) return;
+    const locId = selected.dataset.locationId;
+    const locName = selected.dataset.locationName;
+    if (locId && locName) {
+        csRegistry['locationSelectWrapper']._select(locId, locName);
+    }
+});
 
 document.getElementById('endDate').addEventListener('change', function() {
     const start = document.getElementById('startDate').value;

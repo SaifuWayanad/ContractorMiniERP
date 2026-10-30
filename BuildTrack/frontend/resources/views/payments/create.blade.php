@@ -56,11 +56,8 @@
 
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Amount <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" step="0.01" name="amount" class="form-control @error('amount') is-invalid @enderror" value="{{ old('amount') }}" required>
-                                @error('amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            </div>
+                            <input type="number" step="0.01" name="amount" class="form-control @error('amount') is-invalid @enderror" value="{{ old('amount') }}" required>
+                            @error('amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
                         <div class="col-md-6">
@@ -99,9 +96,15 @@
                         </div>
                     </div>
 
+                    <input type="hidden" name="from" value="{{ request('from') }}">
+                    <input type="hidden" name="fromProjectId" value="{{ request('projectId', $preselectedProject['id'] ?? '') }}">
                     <div class="mt-4 d-flex gap-2">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-2"></i>Save Payment</button>
-                        <a href="{{ route('payments.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                        @if(request('from') === 'project' && request('projectId'))
+                            <a href="{{ route('projects.show', request('projectId')) }}" class="btn btn-outline-secondary">Cancel</a>
+                        @else
+                            <a href="{{ route('payments.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                        @endif
                     </div>
                 </form>
             </div>

@@ -75,9 +75,8 @@ class ExpenseController extends Controller
                 return back()->withErrors(['error' => $result['conflict']])->withInput();
             }
 
-            $projectId = $result['projectId'] ?? $request->input('projectId');
-            if ($projectId) {
-                return redirect()->route('projects.show', $projectId)->with('success', 'Expense recorded successfully.');
+            if (($r['from'] ?? '') === 'project' && !empty($r['fromProjectId'])) {
+                return redirect()->route('projects.show', (int)$r['fromProjectId'])->with('success', 'Expense recorded successfully.');
             }
             return redirect()->route('expenses.index')->with('success', 'Expense recorded successfully.');
         } catch (AuthException $e) {
@@ -87,7 +86,7 @@ class ExpenseController extends Controller
         }
     }
 
-    public function edit(int $id)
+    public function edit(int $id, Request $request)
     {
         $api = $this->api();
         $expense = [];
@@ -102,7 +101,9 @@ class ExpenseController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return view('expenses.edit', compact('expense', 'projects'));
+        $from = $request->query('from', '');
+        $fromProjectId = $request->query('projectId', $expense['projectId'] ?? '');
+        return view('expenses.edit', compact('expense', 'projects', 'from', 'fromProjectId'));
     }
 
     public function update(Request $request, int $id)
@@ -131,6 +132,9 @@ class ExpenseController extends Controller
                 return back()->withErrors(['error' => $result['conflict']])->withInput();
             }
 
+            if (($r['from'] ?? '') === 'project' && !empty($r['fromProjectId'])) {
+                return redirect()->route('projects.show', (int)$r['fromProjectId'])->with('success', 'Expense updated successfully.');
+            }
             return redirect()->route('expenses.index')->with('success', 'Expense updated successfully.');
         } catch (AuthException $e) {
             return redirect()->route('login')->with('error', 'Session expired, please log in again');

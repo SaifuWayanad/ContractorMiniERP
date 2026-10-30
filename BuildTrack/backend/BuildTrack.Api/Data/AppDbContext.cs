@@ -44,6 +44,10 @@ public class AppDbContext : DbContext
             e.Property(l => l.City).HasMaxLength(100);
             e.Property(l => l.CreatedAt).HasDefaultValueSql("datetime('now')");
             e.Property(l => l.UpdatedAt).HasDefaultValueSql("datetime('now')");
+            e.HasOne(l => l.CreatedByUser)
+             .WithMany()
+             .HasForeignKey(l => l.CreatedByUserId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Customer
@@ -58,6 +62,10 @@ public class AppDbContext : DbContext
             e.HasOne(c => c.Location)
              .WithMany(l => l.Customers)
              .HasForeignKey(c => c.LocationId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(c => c.CreatedByUser)
+             .WithMany()
+             .HasForeignKey(c => c.CreatedByUserId)
              .OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -93,6 +101,10 @@ public class AppDbContext : DbContext
             e.Property(p => p.DefaultUnitRate).HasColumnType("decimal(18,2)");
             e.Property(p => p.CreatedAt).HasDefaultValueSql("datetime('now')");
             e.Property(p => p.UpdatedAt).HasDefaultValueSql("datetime('now')");
+            e.HasOne(p => p.CreatedByUser)
+             .WithMany()
+             .HasForeignKey(p => p.CreatedByUserId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Purchase

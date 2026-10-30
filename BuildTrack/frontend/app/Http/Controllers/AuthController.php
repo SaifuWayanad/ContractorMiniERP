@@ -59,7 +59,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'current_password' => 'required|string',
-            'new_password'     => 'required|string|min:6|confirmed',
+            'new_password'     => 'required|string|confirmed',
         ]);
 
         try {
@@ -69,7 +69,7 @@ class AuthController extends Controller
                 'newPassword'     => $request->input('new_password'),
             ]);
 
-            return redirect()->route('profile.change-password')
+            return redirect()->route('dashboard')
                 ->with('success', 'Password changed successfully.');
         } catch (ApiException $e) {
             return back()->withErrors(['current_password' => $e->getMessage()])->withInput();

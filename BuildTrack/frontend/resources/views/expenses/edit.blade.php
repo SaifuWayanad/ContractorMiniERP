@@ -58,12 +58,9 @@
 
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Amount <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" step="0.01" name="amount" class="form-control @error('amount') is-invalid @enderror"
-                                    value="{{ old('amount', $expense['amount'] ?? '') }}" required>
-                                @error('amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            </div>
+                            <input type="number" step="0.01" name="amount" class="form-control @error('amount') is-invalid @enderror"
+                                value="{{ old('amount', $expense['amount'] ?? '') }}" required>
+                            @error('amount')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
                         <div class="col-12">
@@ -94,9 +91,15 @@
                         </div>
                     </div>
 
+                    <input type="hidden" name="from" value="{{ $from ?? '' }}">
+                    <input type="hidden" name="fromProjectId" value="{{ $fromProjectId ?? '' }}">
                     <div class="mt-4 d-flex gap-2">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-2"></i>Update Expense</button>
-                        <a href="{{ route('expenses.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                        @if(!empty($from) && $from === 'project' && !empty($fromProjectId))
+                            <a href="{{ route('projects.show', $fromProjectId) }}" class="btn btn-outline-secondary">Cancel</a>
+                        @else
+                            <a href="{{ route('expenses.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                        @endif
                     </div>
                 </form>
             </div>

@@ -21,6 +21,10 @@ class ReportController extends Controller
     {
         $query = Project::with(['customer', 'location']);
 
+        if (! $request->user()->isAdmin()) {
+            $query->where('assigned_user_id', $request->user()->id);
+        }
+
         if (! $this->boolQuery($request, 'includeArchived')) {
             $query->where('is_archived', false);
         }

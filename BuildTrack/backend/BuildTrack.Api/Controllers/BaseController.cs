@@ -20,6 +20,7 @@ public class BaseController : ControllerBase
     {
         var q = projects.AsQueryable();
         if (!includeArchived) q = q.Where(p => !p.IsArchived);
+        if (!IsAdmin) q = q.Where(p => p.AssignedUserId == CurrentUserId);
         return q;
     }
 }

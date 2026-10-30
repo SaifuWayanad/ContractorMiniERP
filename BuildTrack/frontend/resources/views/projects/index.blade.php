@@ -6,6 +6,14 @@
 @php
     $items = $projects['data'] ?? $projects['items'] ?? (is_array($projects) && !isset($projects['id']) ? array_values($projects) : []);
     $pagination = $projects['pagination'] ?? $projects['meta'] ?? null;
+    // Deduplicate by id in case of API quirks
+    $seenProjectIds = [];
+    $items = array_filter($items, function($item) use (&$seenProjectIds) {
+        $id = $item['id'] ?? null;
+        if ($id === null || in_array($id, $seenProjectIds)) return false;
+        $seenProjectIds[] = $id;
+        return true;
+    });
 @endphp
 
 <div class="card">

@@ -33,12 +33,10 @@
                                id="new_password"
                                name="new_password"
                                autocomplete="new-password"
-                               minlength="6"
                                required>
                         @error('new_password')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
-                        <div class="form-text">Minimum 6 characters.</div>
                     </div>
 
                     <div class="mb-4">

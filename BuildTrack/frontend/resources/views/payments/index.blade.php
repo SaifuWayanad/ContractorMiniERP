@@ -31,25 +31,28 @@
         @else
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
+                    @php
+                    $methodLabels = ['cash'=>'Cash','bank_transfer'=>'Bank Transfer','cheque'=>'Cheque','card'=>'Card','other'=>'Other'];
+                    @endphp
                     <thead>
                         <tr>
-                            <th>Date</th>
+                            <th style="white-space:nowrap">Date</th>
                             <th>Customer</th>
                             <th>Project</th>
-                            <th class="text-end">Amount</th>
-                            <th>Method</th>
+                            <th class="text-end" style="white-space:nowrap">Amount</th>
+                            <th style="white-space:nowrap">Method</th>
                             <th>Reference</th>
-                            <th class="text-center">Actions</th>
+                            <th class="text-center" style="white-space:nowrap">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($items as $payment)
                         <tr>
-                            <td>{{ isset($payment['paymentDate']) ? date('d M Y', strtotime($payment['paymentDate'])) : '—' }}</td>
+                            <td style="white-space:nowrap">{{ isset($payment['paymentDate']) ? date('d M Y', strtotime($payment['paymentDate'])) : '—' }}</td>
                             <td>{{ $payment['customerName'] ?? '—' }}</td>
                             <td>{{ $payment['projectName'] ?? '—' }}</td>
-                            <td class="text-end fw-semibold" style="font-variant-numeric:tabular-nums;color:#16a34a;">{{ isset($payment['amountReceived']) ? number_format((float)$payment['amountReceived'], 2) : '—' }}</td>
-                            <td>{{ $payment['paymentMethod'] ?? '—' }}</td>
+                            <td class="text-end fw-semibold" style="font-variant-numeric:tabular-nums;color:#16a34a;white-space:nowrap">{{ isset($payment['amountReceived']) ? number_format((float)$payment['amountReceived'], 2) : '—' }}</td>
+                            <td style="white-space:nowrap">{{ $methodLabels[$payment['paymentMethod'] ?? ''] ?? ($payment['paymentMethod'] ?? '—') }}</td>
                             <td class="text-muted small">{{ $payment['receiptReference'] ?? '—' }}</td>
                             <td class="text-center" style="white-space:nowrap;">
                                 <a href="{{ route('payments.edit', $payment['id']) }}" class="btn-action me-1" title="Edit">
