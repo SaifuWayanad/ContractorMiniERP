@@ -58,7 +58,7 @@ mkdir -p "$STAGE"
 rsync -a \
   --exclude=/vendor --exclude=/node_modules --exclude=/.git --exclude=/tests \
   --exclude=/.env --exclude=/database/database.sqlite --exclude=/*.sh \
-  --exclude=/AGENTS.md --exclude=/CLAUDE.md --exclude=/boost.json --exclude=/phpunit.xml \
+  --exclude=/AGENTS.md --exclude=/CLAUDE.md --exclude=/boost.json --exclude=/phpunit.xml --exclude='/*.zip' \
   --exclude='/storage/logs/*' --exclude='/storage/framework/sessions/*' \
   --exclude='/storage/framework/cache/data/*' --exclude='/storage/framework/views/*' \
   --exclude='/bootstrap/cache/*.php' --exclude=.DS_Store \
@@ -68,6 +68,96 @@ mkdir -p "$STAGE/bootstrap/cache" "$STAGE/storage/logs" "$STAGE/storage/app/publ
 
 echo "==> Installing production dependencies"
 ( cd "$STAGE" && composer install --no-dev --no-scripts --optimize-autoloader --no-interaction --quiet )
+
+# BuildTrack API (Laravel) for projectops.buildmate.tech. Its folder is public_html/projectops, which
+# this deploy replaces, so the API is packed into the same archive. Set PROJECTOPS_SRC to enable it.
+if [ -n "${PROJECTOPS_SRC:-}" ]; then
+  echo "==> Staging the BuildTrack API into projectops/"
+  mkdir -p "$STAGE/projectops"
+  rsync -a \
+    --exclude=/vendor --exclude=/.env --exclude=/database/database.sqlite --exclude=/tests \
+    --exclude=/.phpunit.result.cache --exclude=/README.md --exclude=/AGENTS.md --exclude=/CLAUDE.md \
+    --exclude='/storage/logs/*' --exclude='/storage/framework/sessions/*' --exclude='/storage/framework/cache/data/*' \
+    --exclude='/storage/framework/views/*' --exclude='/bootstrap/cache/*.php' --exclude=.DS_Store \
+    "$PROJECTOPS_SRC/" "$STAGE/projectops/"
+  mkdir -p "$STAGE/projectops/bootstrap/cache" "$STAGE/projectops/storage/logs" "$STAGE/projectops/storage/app/public" \
+           "$STAGE/projectops/storage/framework/sessions" "$STAGE/projectops/storage/framework/cache/data" "$STAGE/projectops/storage/framework/views"
+  ( cd "$STAGE/projectops" && composer install --no-dev --optimize-autoloader --no-interaction --quiet )
+
+  # The subdomain's document root is projectops/, so send every request to public/.
+  cat > "$STAGE/projectops/.htaccess" <<'EOF'
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+EOF
+
+  API_KEY="$(cat "$HOME/.buildtrack-api-app-key")"
+  API_DB_PASSWORD="$(cat "$HOME/.buildtrack-db-password")"
+  cat > "$STAGE/projectops/.env" <<EOF
+APP_NAME=BuildTrack
+APP_ENV=production
+APP_KEY=${API_KEY}
+APP_DEBUG=false
+APP_URL=https://projectops.${DOMAIN}
+APP_TIMEZONE=UTC
+LOG_CHANNEL=single
+LOG_LEVEL=warning
+DB_CONNECTION=mysql
+DB_HOST=srv839.hstgr.io
+DB_PORT=3306
+DB_DATABASE=u540637169_buildtrack
+DB_USERNAME=u540637169_buildtrack
+DB_PASSWORD=${API_DB_PASSWORD}
+SESSION_DRIVER=file
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
+EOF
+fi
+
+# BuildTrack frontend (Laravel) for buildtrack.buildmate.tech. Packed into the same archive for the same
+# reason as the API above. Set BUILDTRACK_SRC to enable it.
+if [ -n "${BUILDTRACK_SRC:-}" ]; then
+  echo "==> Staging the BuildTrack frontend into buildtrack/"
+  mkdir -p "$STAGE/buildtrack"
+  rsync -a \
+    --exclude=/vendor --exclude=/node_modules --exclude=/.env --exclude=/database/database.sqlite --exclude=/tests \
+    --exclude=/.phpunit.result.cache --exclude=/README.md --exclude=/AGENTS.md --exclude=/CLAUDE.md \
+    --exclude='/storage/logs/*' --exclude='/storage/framework/sessions/*' --exclude='/storage/framework/cache/data/*' \
+    --exclude='/storage/framework/views/*' --exclude='/bootstrap/cache/*.php' --exclude=.DS_Store \
+    "$BUILDTRACK_SRC/" "$STAGE/buildtrack/"
+  mkdir -p "$STAGE/buildtrack/bootstrap/cache" "$STAGE/buildtrack/storage/logs" "$STAGE/buildtrack/storage/app/public" \
+           "$STAGE/buildtrack/storage/framework/sessions" "$STAGE/buildtrack/storage/framework/cache/data" "$STAGE/buildtrack/storage/framework/views"
+  ( cd "$STAGE/buildtrack" && composer install --no-dev --optimize-autoloader --no-interaction --quiet )
+
+  cat > "$STAGE/buildtrack/.htaccess" <<'EOF'
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+EOF
+
+  FE_KEY="$(cat "$HOME/.buildtrack-frontend-app-key")"
+  cat > "$STAGE/buildtrack/.env" <<EOF
+APP_NAME=BuildTrack
+APP_ENV=production
+APP_KEY=${FE_KEY}
+APP_DEBUG=false
+APP_URL=https://buildtrack.${DOMAIN}
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+LOG_CHANNEL=single
+LOG_LEVEL=warning
+BACKEND_API_BASE_URL=https://projectops.${DOMAIN}/api
+SESSION_DRIVER=file
+SESSION_SECURE_COOKIE=true
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
+FILESYSTEM_DISK=local
+EOF
+fi
 
 # The APP_KEY is generated once and kept locally so redeploys don't invalidate sessions/encrypted data.
 KEY_FILE="$HOME/.buildmate-app-key"
@@ -161,6 +251,20 @@ ${PHP_BIN} artisan optimize:clear
 ${PHP_BIN} artisan config:cache
 ${PHP_BIN} artisan route:cache
 ${PHP_BIN} artisan view:cache
+if [ -d projectops ]; then
+  cd projectops
+  ${PHP_BIN} artisan migrate --force
+  ${PHP_BIN} artisan optimize:clear
+  ${PHP_BIN} artisan config:cache
+  ${PHP_BIN} artisan route:cache
+  cd ..
+fi
+if [ -d buildtrack ]; then
+  cd buildtrack
+  ${PHP_BIN} artisan optimize:clear
+  ${PHP_BIN} artisan config:cache
+  cd ..
+fi
 rm -f database/seeders/ProductionAdminSeeder.php install.sh
 echo INSTALL_OK
 INSTALLEOF
@@ -184,30 +288,49 @@ for attempt in 1 2 3 4 5; do
   [ "$attempt" = 5 ] && { echo "Could not create the upload" >&2; exit 1; }
   sleep 2
 done
-OFFSET=0
-while [ "$OFFSET" -lt "$SIZE" ]; do
-  python3 -I -c "import sys; f=open(sys.argv[1],'rb'); f.seek(int(sys.argv[2])); sys.stdout.buffer.write(f.read(int(sys.argv[3])))" "$WORK/$ZIP_NAME" "$OFFSET" "$CHUNK" > "$WORK/chunk"
-  SENT=0
-  for attempt in 1 2 3 4 5 6; do
-    HDRS="$(curl "${TUS[@]}" -f -D - -o /dev/null -X PATCH "$UP_URL/$ZIP_NAME?override=true" \
-      -H "Content-Type: application/offset+octet-stream" -H "Upload-Offset: $OFFSET" \
-      --data-binary "@$WORK/chunk" 2>/dev/null)" && {
-      NEW="$(echo "$HDRS" | tr -d '\r' | awk -F': ' 'tolower($1)=="upload-offset"{print $2}' | tail -n 1)"
-      OFFSET="${NEW:-$((OFFSET + $(wc -c < "$WORK/chunk" | tr -d ' ')))}"; SENT=1; break; }
-    REMOTE="$(curl "${TUS[@]}" -I "$UP_URL/$ZIP_NAME?override=true" 2>/dev/null | tr -d '\r' | awk -F': ' 'tolower($1)=="upload-offset"{print $2}' | tail -n 1)"
-    if [ -n "${REMOTE:-}" ] && [ "$REMOTE" != "$OFFSET" ]; then OFFSET="$REMOTE"; SENT=2; break; fi
-    sleep 2
+# Sends the archive from byte $1 to the end. Hostinger's Upload-Offset reply is the only proof a chunk
+# was stored, so we track the last one it sent and never assume a chunk landed.
+LAST_STORED=""
+send_from() {
+  OFFSET="$1"
+  while [ "$OFFSET" -lt "$SIZE" ]; do
+    python3 -I -c "import sys; f=open(sys.argv[1],'rb'); f.seek(int(sys.argv[2])); sys.stdout.buffer.write(f.read(int(sys.argv[3])))" "$WORK/$ZIP_NAME" "$OFFSET" "$CHUNK" > "$WORK/chunk"
+    CHUNK_LEN="$(wc -c < "$WORK/chunk" | tr -d ' ')"
+    SENT=0
+    for attempt in 1 2 3 4 5 6; do
+      HDRS="$(curl "${TUS[@]}" -f -D - -o /dev/null -X PATCH "$UP_URL/$ZIP_NAME?override=true" \
+        -H "Content-Type: application/offset+octet-stream" -H "Upload-Offset: $OFFSET" \
+        --data-binary "@$WORK/chunk" 2>/dev/null)" && {
+        NEW="$(echo "$HDRS" | tr -d '\r' | awk -F': ' 'tolower($1)=="upload-offset"{print $2}' | tail -n 1)"
+        if [ -n "${NEW:-}" ]; then LAST_STORED="$NEW"; OFFSET="$NEW"; else OFFSET=$((OFFSET + CHUNK_LEN)); fi
+        SENT=1; break; }
+      sleep 2
+    done
+    [ "$SENT" != 0 ] || { echo "Upload failed at byte $OFFSET of $SIZE" >&2; exit 1; }
+    printf '\r    %d%%' $((OFFSET * 100 / SIZE))
   done
-  [ "$SENT" != 0 ] || { echo "Upload failed at byte $OFFSET of $SIZE" >&2; exit 1; }
-  printf '\r    %d%%' $((OFFSET * 100 / SIZE))
-done
-echo
+  echo
+}
+
+send_from 0
+
+# Hostinger must confirm the full size in its own reply before the deploy is requested.
+if [ "${LAST_STORED:-}" != "$SIZE" ]; then
+  echo "Hostinger confirmed ${LAST_STORED:-0} of $SIZE bytes. The site was not changed." >&2
+  exit 1
+fi
+echo "    Hostinger confirmed all $SIZE bytes"
 
 echo "==> Setting PHP 8.4"
 api PATCH "/accounts/$HUSER/websites/$DOMAIN/php/version" '{"version":"8.4"}' >/dev/null
 
 echo "==> Deploying (this replaces everything in public_html)"
-api POST "/accounts/$HUSER/websites/$DOMAIN/deploy" "{\"archive_path\":\"$ZIP_NAME\"}" >/dev/null
+# Hostinger intermittently answers the deploy call with HTTP 500 "[Hosting:9999]". Retrying the same archive is safe.
+for attempt in 1 2 3 4 5; do
+  if api POST "/accounts/$HUSER/websites/$DOMAIN/deploy" "{\"archive_path\":\"$ZIP_NAME\"}" >/dev/null; then break; fi
+  [ "$attempt" = 5 ] && { echo "Deploy call kept failing; the site was not changed." >&2; exit 1; }
+  echo "    deploy call failed, retrying in 60s ($attempt/5)"; sleep 60
+done
 
 echo "==> Running install tasks on the server via a one-off cron job"
 INSTALL_CMD="cd $APP_DIR && bash install.sh"

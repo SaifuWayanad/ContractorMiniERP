@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "Giqji4jls63r+pX9NhqhuiwpHrP9e/xkYrMwjyVrwdI=",
+  "Source": "BuildTrack.Api",
+  "BasePath": "_content/BuildTrack.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
