@@ -153,7 +153,7 @@
             </div>
         </div>
         {{-- Balance Due: full-width summary strip --}}
-        <div class="rounded-3 d-flex align-items-center justify-content-between px-4 py-3 mb-4"
+        <div class="balance-due-strip rounded-3 d-flex align-items-center justify-content-between px-4 py-3 mb-4"
              style="background:{{ $bal <= 0 ? '#f0fdf4' : '#fef2f2' }};border:1.5px solid {{ $bal <= 0 ? '#bbf7d0' : '#fecaca' }};">
             <div class="d-flex align-items-center gap-3">
                 <div class="kpi-icon" style="background:{{ $bal <= 0 ? '#dcfce7' : '#fee2e2' }};color:{{ $bal <= 0 ? '#15803d' : '#b91c1c' }};">

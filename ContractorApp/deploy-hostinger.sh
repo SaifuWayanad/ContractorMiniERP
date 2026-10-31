@@ -277,9 +277,13 @@ echo "    $(du -h "$WORK/$ZIP_NAME" | cut -f1) archive"
 
 echo "==> Uploading to ${DOMAIN}"
 CREDS="$(api POST /files/upload-urls "{\"username\":\"$HUSER\",\"domain\":\"$DOMAIN\"}")"
+echo "    Upload-urls response: $CREDS"
 UP_URL="$(echo "$CREDS" | json_get "d['url']")"; UP_URL="${UP_URL%/}"
 AUTH="$(echo "$CREDS" | json_get "d['auth_key']")"
 RAUTH="$(echo "$CREDS" | json_get "d['rest_auth_key']")"
+# Extract server-side path if provided, fall back to home directory
+UP_PATH="$(echo "$CREDS" | python3 -I -c "import sys,json; d=json.load(sys.stdin); print(d.get('path', '/home/${HUSER}/').rstrip('/'))" 2>/dev/null || echo "/home/${HUSER}")"
+echo "    Files will be stored under: $UP_PATH"
 TUS=(--http1.1 --tlsv1.2 -sS -H "X-Auth: $AUTH" -H "X-Auth-Rest: $RAUTH" -H "Tus-Resumable: 1.0.0")
 CHUNK=$((1024 * 1024))
 for attempt in 1 2 3 4 5; do
@@ -325,9 +329,16 @@ echo "==> Setting PHP 8.4"
 api PATCH "/accounts/$HUSER/websites/$DOMAIN/php/version" '{"version":"8.4"}' >/dev/null
 
 echo "==> Deploying (this replaces everything in public_html)"
-# Hostinger intermittently answers the deploy call with HTTP 500 "[Hosting:9999]". Retrying the same archive is safe.
+ARCHIVE_PATH="${UP_PATH}/${ZIP_NAME}"
+echo "    Using archive_path: $ARCHIVE_PATH"
+# Try full path first, fall back to bare filename if rejected
 for attempt in 1 2 3 4 5; do
-  if api POST "/accounts/$HUSER/websites/$DOMAIN/deploy" "{\"archive_path\":\"$ZIP_NAME\"}" >/dev/null; then break; fi
+  if api POST "/accounts/$HUSER/websites/$DOMAIN/deploy" "{\"archive_path\":\"$ARCHIVE_PATH\"}" >/dev/null; then break; fi
+  # On second attempt also try bare filename in case API changed
+  if [ "$attempt" = 2 ]; then
+    echo "    Retrying with bare filename as archive_path..."
+    if api POST "/accounts/$HUSER/websites/$DOMAIN/deploy" "{\"archive_path\":\"$ZIP_NAME\"}" >/dev/null; then break; fi
+  fi
   [ "$attempt" = 5 ] && { echo "Deploy call kept failing; the site was not changed." >&2; exit 1; }
   echo "    deploy call failed, retrying in 60s ($attempt/5)"; sleep 60
 done
@@ -344,17 +355,37 @@ api POST "/accounts/$HUSER/cron-jobs" "$(cron_body "$INSTALL_CMD")" >/dev/null
 JOB_UID="$(api GET "/accounts/$HUSER/cron-jobs" | cron_items | python3 -I -c "import sys,json; print(next(c['uid'] for c in json.load(sys.stdin) if 'install.sh' in c['command']))")"
 
 OK=0; OUT=""
-for i in $(seq 1 12); do
+for i in $(seq 1 20); do
   sleep 15
-  OUT="$(api GET "/accounts/$HUSER/cron-jobs/$JOB_UID/output" | json_get "d.get('output','')" || true)"
+  RAW="$(api GET "/accounts/$HUSER/cron-jobs/$JOB_UID/output" 2>/dev/null || true)"
+  OUT="$(echo "$RAW" | python3 -I -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    # handle {output:...} or {data:{output:...}}
+    if isinstance(d, dict):
+        print(d.get('output') or (d.get('data') or {}).get('output',''))
+except Exception:
+    pass
+" 2>/dev/null || true)"
   if echo "$OUT" | grep -q INSTALL_OK; then OK=1; break; fi
-  echo "    waiting for the cron job to run... ($i/12)"
+  printf '\r    waiting for cron job... (%d/20, ~%ds elapsed)' "$i" $((i * 15))
 done
+echo
 api DELETE "/accounts/$HUSER/cron-jobs/$JOB_UID" >/dev/null || true
 if [ "$OK" != 1 ]; then
-  echo "Install task did not report success. Last output:" >&2
-  echo "${OUT:-<none>}" | tail -n 25 >&2
-  exit 1
+  echo "" >&2
+  echo "Install task did not complete automatically. Last output:" >&2
+  echo "${OUT:-<none>}" >&2
+  echo "" >&2
+  echo "Run these commands manually via SSH (ssh -p 65002 $HUSER@srv839.hstgr.io):" >&2
+  echo "  cd $APP_DIR" >&2
+  echo "  $PHP_BIN artisan migrate --force" >&2
+  echo "  $PHP_BIN artisan config:cache && $PHP_BIN artisan route:cache && $PHP_BIN artisan view:cache" >&2
+  echo "  ln -sfn $APP_DIR/storage/app/public $APP_DIR/public/storage" >&2
+  echo "  touch storage/.installed" >&2
+  echo "" >&2
+  echo "The site files are deployed — only the post-install step is needed." >&2
 fi
 
 echo "==> Adding the scheduler cron (meeting reminders)"
