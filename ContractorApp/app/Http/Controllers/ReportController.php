@@ -7,6 +7,7 @@ use App\Models\Expense;
 use App\Models\Project;
 use App\Models\ProjectPayment;
 use App\Models\Purchase;
+use App\Models\Work;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -31,10 +32,11 @@ class ReportController extends Controller
         // All matching IDs for KPI totals
         $allIds = (clone $baseQuery)->pluck('id');
 
-        $allPurchases = Purchase::whereIn('project_id', $allIds)->sum('line_total');
-        $allExpenses  = Expense::whereIn('project_id', $allIds)->sum('amount');
-        $allPayments  = ProjectPayment::whereIn('project_id', $allIds)->sum('amount_received');
-        $allBudget    = Project::whereIn('id', $allIds)->sum('budget');
+        $allPurchases   = Purchase::whereIn('project_id', $allIds)->sum('line_total');
+        $allExpenses    = Expense::whereIn('project_id', $allIds)->sum('amount')
+                        + Work::whereIn('project_id', $allIds)->whereNotNull('amount')->sum('amount');
+        $allPayments    = ProjectPayment::whereIn('project_id', $allIds)->sum('amount_received');
+        $allBudget      = Project::whereIn('id', $allIds)->sum('budget');
 
         $totals = [
             'budget'      => (float) $allBudget,
@@ -59,9 +61,18 @@ class ReportController extends Controller
             ->select('project_id', DB::raw('SUM(line_total) as total'))
             ->groupBy('project_id')->pluck('total', 'project_id');
 
-        $expenseTotals = Expense::whereIn('project_id', $pageIds)
+        $expenseOnlyTotals = Expense::whereIn('project_id', $pageIds)
             ->select('project_id', DB::raw('SUM(amount) as total'))
             ->groupBy('project_id')->pluck('total', 'project_id');
+
+        $workExpenseTotals = Work::whereIn('project_id', $pageIds)
+            ->whereNotNull('amount')
+            ->select('project_id', DB::raw('SUM(amount) as total'))
+            ->groupBy('project_id')->pluck('total', 'project_id');
+
+        $expenseTotals = $pageIds->mapWithKeys(fn ($id) => [
+            $id => (float) ($expenseOnlyTotals[$id] ?? 0) + (float) ($workExpenseTotals[$id] ?? 0),
+        ]);
 
         $paymentTotals = ProjectPayment::whereIn('project_id', $pageIds)
             ->select('project_id', DB::raw('SUM(amount_received) as total'))
@@ -119,10 +130,20 @@ class ReportController extends Controller
             ->select('projects.client_id', DB::raw('SUM(purchases.line_total) as total'))
             ->groupBy('projects.client_id')->pluck('total', 'client_id');
 
-        $expenseTotals = Expense::whereIn('project_id', $allIds)
+        $expenseOnlyByClient = Expense::whereIn('project_id', $allIds)
             ->join('projects', 'projects.id', '=', 'expenses.project_id')
             ->select('projects.client_id', DB::raw('SUM(expenses.amount) as total'))
             ->groupBy('projects.client_id')->pluck('total', 'client_id');
+
+        $workExpenseByClient = Work::whereIn('project_id', $allIds)
+            ->whereNotNull('amount')
+            ->join('projects', 'projects.id', '=', 'works.project_id')
+            ->select('projects.client_id', DB::raw('SUM(works.amount) as total'))
+            ->groupBy('projects.client_id')->pluck('total', 'client_id');
+
+        $expenseTotals = $clientIds->mapWithKeys(fn ($id) => [
+            $id => (float) ($expenseOnlyByClient[$id] ?? 0) + (float) ($workExpenseByClient[$id] ?? 0),
+        ]);
 
         $paymentTotals = ProjectPayment::whereIn('project_id', $allIds)
             ->join('projects', 'projects.id', '=', 'project_payments.project_id')

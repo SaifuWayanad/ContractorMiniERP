@@ -99,8 +99,8 @@ class VisitController extends Controller
     private function formData(Visit $visit): array
     {
         $clientLocations = Client::orderBy('name')
-            ->get(['id', 'city', 'country'])
-            ->mapWithKeys(fn ($c) => [$c->id => $c->city ?: $c->country ?: ''])
+            ->get(['id', 'city'])
+            ->mapWithKeys(fn ($c) => [$c->id => $c->city ?: ''])
             ->all();
 
         $visitLocations = Visit::whereNotNull('location')

@@ -103,9 +103,10 @@
         @canany(['viewAny'], [App\Models\Purchase::class, App\Models\Expense::class, App\Models\ProjectPayment::class])
         <p class="text-muted small fw-semibold text-uppercase mb-2" style="letter-spacing:.05em;">Financial Summary</p>
         @php $bal = $financials['outstanding']; @endphp
-        <div class="row g-3 mb-4">
+        {{-- Top row: 4 metric cards --}}
+        <div class="row g-3 mb-2">
             @if($financials['budget'] > 0)
-            <div class="col-6 col-md">
+            <div class="col-6 col-md-3">
                 <div class="card kpi-card h-100" style="border-left-color:#3b82f6;background:#eff6ff;">
                     <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
                         <div class="kpi-icon" style="background:#dbeafe;color:#2563eb;"><i class="bi bi-wallet2"></i></div>
@@ -117,7 +118,7 @@
                 </div>
             </div>
             @endif
-            <div class="col-6 col-md">
+            <div class="col-6 col-md-3">
                 <div class="card kpi-card h-100" style="border-left-color:#0891b2;background:#ecfeff;">
                     <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
                         <div class="kpi-icon" style="background:#cffafe;color:#0e7490;"><i class="bi bi-cart3"></i></div>
@@ -128,7 +129,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md">
+            <div class="col-6 col-md-3">
                 <div class="card kpi-card h-100" style="border-left-color:#d97706;background:#fffbeb;">
                     <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
                         <div class="kpi-icon" style="background:#fef3c7;color:#b45309;"><i class="bi bi-receipt"></i></div>
@@ -139,7 +140,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md">
+            <div class="col-6 col-md-3">
                 <div class="card kpi-card h-100" style="border-left-color:#16a34a;background:#f0fdf4;">
                     <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
                         <div class="kpi-icon" style="background:#dcfce7;color:#15803d;"><i class="bi bi-cash-coin"></i></div>
@@ -150,16 +151,21 @@
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md">
-                <div class="card kpi-card h-100" style="border-left-color:{{ $bal <= 0 ? '#16a34a' : '#dc2626' }};background:{{ $bal <= 0 ? '#f0fdf4' : '#fef2f2' }};">
-                    <div class="card-body d-flex align-items-center gap-3 py-3 px-3">
-                        <div class="kpi-icon" style="background:{{ $bal <= 0 ? '#dcfce7' : '#fee2e2' }};color:{{ $bal <= 0 ? '#15803d' : '#b91c1c' }};"><i class="bi bi-{{ $bal <= 0 ? 'check-circle' : 'hourglass-split' }}"></i></div>
-                        <div>
-                            <div class="kpi-label">Balance Due</div>
-                            <div class="kpi-value" style="color:{{ $bal <= 0 ? '#15803d' : '#b91c1c' }};">₹{{ number_format(abs($bal), 2) }}</div>
-                        </div>
-                    </div>
+        </div>
+        {{-- Balance Due: full-width summary strip --}}
+        <div class="rounded-3 d-flex align-items-center justify-content-between px-4 py-3 mb-4"
+             style="background:{{ $bal <= 0 ? '#f0fdf4' : '#fef2f2' }};border:1.5px solid {{ $bal <= 0 ? '#bbf7d0' : '#fecaca' }};">
+            <div class="d-flex align-items-center gap-3">
+                <div class="kpi-icon" style="background:{{ $bal <= 0 ? '#dcfce7' : '#fee2e2' }};color:{{ $bal <= 0 ? '#15803d' : '#b91c1c' }};">
+                    <i class="bi bi-{{ $bal <= 0 ? 'check-circle-fill' : 'hourglass-split' }}"></i>
                 </div>
+                <div>
+                    <div class="kpi-label mb-0">Balance Due</div>
+                    <div class="text-muted small">{{ $bal <= 0 ? 'Fully collected' : 'Amount still outstanding' }}</div>
+                </div>
+            </div>
+            <div class="fw-bold fs-5" style="color:{{ $bal <= 0 ? '#15803d' : '#b91c1c' }};">
+                ₹{{ number_format(abs($bal), 2) }}
             </div>
         </div>
         <hr class="my-3">

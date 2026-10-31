@@ -50,7 +50,8 @@ class DashboardService
             ->first();
 
         $purchaseValue  = (float) Purchase::forContractor($contractorId)->sum('line_total');
-        $totalExpenses  = (float) Expense::forContractor($contractorId)->sum('amount');
+        $totalExpenses  = (float) Expense::forContractor($contractorId)->sum('amount')
+                        + (float) Work::forContractor($contractorId)->whereNotNull('amount')->sum('amount');
         $totalReceipts  = (float) ProjectPayment::forContractor($contractorId)->sum('amount_received');
         $totalBudget    = (float) Project::forContractor($contractorId)->sum('budget');
         $outstanding    = $totalBudget - $totalReceipts;
