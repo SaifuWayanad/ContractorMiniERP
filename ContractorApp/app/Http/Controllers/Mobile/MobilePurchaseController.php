@@ -15,7 +15,7 @@ class MobilePurchaseController extends Controller
         $projectId = $request->integer('project_id') ?: null;
 
         $purchases = Purchase::query()
-            ->with(['product:id,name,unit'])
+            ->with(['product:id,name,unit', 'project:id,name'])
             ->when($projectId, fn ($q, $id) => $q->where('project_id', $id))
             ->orderByDesc('purchase_date')
             ->latest()
@@ -23,6 +23,7 @@ class MobilePurchaseController extends Controller
             ->map(fn (Purchase $p) => [
                 'id'                => $p->id,
                 'project_id'        => $p->project_id,
+                'project_name'      => $p->project?->name,
                 'product_id'        => $p->product_id,
                 'product_name'      => $p->product?->name,
                 'product_unit'      => $p->product?->unit,

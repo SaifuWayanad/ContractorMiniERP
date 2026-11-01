@@ -105,6 +105,32 @@ export default function DashboardScreen() {
           <StatCard label="Clients" value={s?.clients ?? 0} accent="info" style={{ marginLeft: 6 }} />
         </View>
 
+        {/* Quick links */}
+        <Card title="Quick Actions" style={{ marginBottom: 8 }}>
+          <View style={styles.quickRow}>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/visits' as any)} activeOpacity={0.8}>
+              <Ionicons name="walk-outline" size={22} color={Colors.primary} />
+              <Text style={styles.quickLabel}>Visits</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/purchases' as any)} activeOpacity={0.8}>
+              <Ionicons name="cart-outline" size={22} color={Colors.primary} />
+              <Text style={styles.quickLabel}>Purchases</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/expenses' as any)} activeOpacity={0.8}>
+              <Ionicons name="receipt-outline" size={22} color={Colors.primary} />
+              <Text style={styles.quickLabel}>Expenses</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/payments' as any)} activeOpacity={0.8}>
+              <Ionicons name="cash-outline" size={22} color={Colors.primary} />
+              <Text style={styles.quickLabel}>Payments</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/reports/outstanding' as any)} activeOpacity={0.8}>
+              <Ionicons name="bar-chart-outline" size={22} color={Colors.primary} />
+              <Text style={styles.quickLabel}>Report</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+
         {/* Today's meetings */}
         <Card title="📅 Today's Meetings" style={styles.meetingCard}>
           {(data?.todays_meetings?.length ?? 0) === 0 ? (
@@ -228,4 +254,7 @@ const styles = StyleSheet.create({
   empty: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 16 },
   emptyMeeting: { alignItems: 'center', paddingVertical: 20, gap: 8 },
   emptyMeetingText: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
+  quickRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 4 },
+  quickBtn: { alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 4, flex: 1 },
+  quickLabel: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary, textAlign: 'center' },
 });

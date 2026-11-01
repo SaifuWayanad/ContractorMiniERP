@@ -60,8 +60,17 @@ export default function TabsLayout() {
         name="meetings/index"
         options={{
           title: 'Meetings',
+          href: null,
           tabBarIcon: ({ focused }) => <TabIcon name="calendar" focused={focused} />,
           headerTitle: 'Meetings',
+        }}
+      />
+      <Tabs.Screen
+        name="visits/index"
+        options={{
+          title: 'Visits',
+          tabBarIcon: ({ focused }) => <TabIcon name="walk" focused={focused} />,
+          headerTitle: 'Site Visits',
         }}
       />
       <Tabs.Screen
@@ -107,6 +116,14 @@ export default function TabsLayout() {
       <Tabs.Screen name="works/form" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="dealers/[id]" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="dealers/form" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="visits/form" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="purchases/index" options={{ href: null, headerShown: false, headerTitle: 'Purchases' }} />
+      <Tabs.Screen name="purchases/form" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="expenses/index" options={{ href: null, headerShown: false, headerTitle: 'Expenses' }} />
+      <Tabs.Screen name="expenses/form" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="payments/index" options={{ href: null, headerShown: false, headerTitle: 'Payments' }} />
+      <Tabs.Screen name="payments/form" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="reports/outstanding" options={{ href: null, headerShown: false, headerTitle: 'Outstanding Report' }} />
       <Tabs.Screen name="admin/contractors/index" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="admin/contractors/[id]" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="admin/contractors/form" options={{ href: null, headerShown: false }} />

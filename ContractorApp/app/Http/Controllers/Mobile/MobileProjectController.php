@@ -84,12 +84,18 @@ class MobileProjectController extends Controller
 
     public function show(Project $project): JsonResponse
     {
-        foreach (['client', 'locations', 'works.assignee:id,name', 'meetings.createdBy:id,name'] as $rel) {
+        foreach (['client', 'locations', 'works.assignee:id,name', 'meetings.createdBy:id,name', 'purchases.product:id,name,unit', 'expenses', 'payments'] as $rel) {
             try {
                 $project->load($rel);
             } catch (\Throwable) {
             }
         }
+
+        $purchasesTotal = $project->purchases->sum('line_total');
+        $expensesTotal  = $project->expenses->sum('amount');
+        $paymentsTotal  = $project->payments->sum('amount_received');
+        $budget         = (float) ($project->budget ?? 0);
+        $outstanding    = $budget - $paymentsTotal;
 
         return response()->json([
             'id' => $project->id,
@@ -126,6 +132,7 @@ class MobileProjectController extends Controller
                 'status' => $w->status->value,
                 'priority' => $w->priority->value,
                 'due_date' => $w->due_date?->toDateString(),
+                'amount' => $w->amount !== null ? (float) $w->amount : null,
             ]),
             'meetings' => ($project->relationLoaded('meetings') ? $project->meetings : collect())->map(fn ($m) => [
                 'id' => $m->id,
@@ -133,6 +140,43 @@ class MobileProjectController extends Controller
                 'purpose' => $m->purpose,
                 'created_by' => $m->createdBy?->name,
             ]),
+            'purchases' => ($project->relationLoaded('purchases') ? $project->purchases : collect())->map(fn ($p) => [
+                'id'                => $p->id,
+                'product_name'      => $p->product?->name,
+                'product_unit'      => $p->product?->unit,
+                'purchase_date'     => $p->purchase_date?->toDateString(),
+                'quantity'          => (float) $p->quantity,
+                'unit_amount'       => (float) $p->unit_amount,
+                'line_total'        => (float) $p->line_total,
+                'supplier'          => $p->supplier,
+                'invoice_reference' => $p->invoice_reference,
+                'notes'             => $p->notes,
+            ]),
+            'expenses' => ($project->relationLoaded('expenses') ? $project->expenses : collect())->map(fn ($e) => [
+                'id'               => $e->id,
+                'heading'          => $e->heading,
+                'category'         => $e->category,
+                'expense_date'     => $e->expense_date?->toDateString(),
+                'amount'           => (float) $e->amount,
+                'payment_method'   => $e->payment_method,
+                'reference_number' => $e->reference_number,
+                'notes'            => $e->notes,
+            ]),
+            'payments' => ($project->relationLoaded('payments') ? $project->payments : collect())->map(fn ($p) => [
+                'id'                => $p->id,
+                'payment_date'      => $p->payment_date?->toDateString(),
+                'amount_received'   => (float) $p->amount_received,
+                'payment_method'    => $p->payment_method,
+                'receipt_reference' => $p->receipt_reference,
+                'notes'             => $p->notes,
+            ]),
+            'financials' => [
+                'budget'          => $budget,
+                'purchases_total' => (float) $purchasesTotal,
+                'expenses_total'  => (float) $expensesTotal,
+                'payments_total'  => (float) $paymentsTotal,
+                'outstanding'     => $outstanding,
+            ],
         ]);
     }
 

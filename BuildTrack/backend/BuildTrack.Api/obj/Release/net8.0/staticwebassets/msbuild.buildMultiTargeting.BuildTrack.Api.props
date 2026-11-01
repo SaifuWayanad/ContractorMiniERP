@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="../build/BuildTrack.Api.props" />
-</Project>

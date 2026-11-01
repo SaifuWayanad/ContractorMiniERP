@@ -15,6 +15,7 @@ class MobileExpenseController extends Controller
         $projectId = $request->integer('project_id') ?: null;
 
         $expenses = Expense::query()
+            ->with(['project:id,name'])
             ->when($projectId, fn ($q, $id) => $q->where('project_id', $id))
             ->orderByDesc('expense_date')
             ->latest()
@@ -22,6 +23,7 @@ class MobileExpenseController extends Controller
             ->map(fn (Expense $e) => [
                 'id'               => $e->id,
                 'project_id'       => $e->project_id,
+                'project_name'     => $e->project?->name,
                 'heading'          => $e->heading,
                 'category'         => $e->category,
                 'expense_date'     => $e->expense_date?->toDateString(),

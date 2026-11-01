@@ -15,36 +15,53 @@ import { ModalHeader } from '@/components/ui/ModalHeader';
 import { Colors } from '@/constants/Colors';
 import api from '@/services/api';
 
+type Purchase = {
+  id: number; product_name: string | null; product_unit: string | null;
+  purchase_date: string | null; quantity: number; unit_amount: number;
+  line_total: number; supplier: string | null; invoice_reference: string | null; notes: string | null;
+};
+type Expense = {
+  id: number; heading: string; category: string | null;
+  expense_date: string | null; amount: number; payment_method: string | null;
+  reference_number: string | null; notes: string | null;
+};
+type Payment = {
+  id: number; payment_date: string | null; amount_received: number;
+  payment_method: string | null; receipt_reference: string | null; notes: string | null;
+};
+type Financials = { budget: number; purchases_total: number; expenses_total: number; payments_total: number; outstanding: number };
+
 type ProjectDetail = {
-  id: number;
-  name: string;
-  project_number: string;
-  status: string;
-  type_of_work: string | null;
-  description: string | null;
-  start_date: string | null;
-  expected_end_date: string | null;
-  budget: string | null;
-  notes: string | null;
-  next_meeting_at: string | null;
-  next_meeting_notes: string | null;
+  id: number; name: string; project_number: string; status: string;
+  type_of_work: string | null; description: string | null;
+  start_date: string | null; expected_end_date: string | null;
+  budget: string | null; notes: string | null;
+  next_meeting_at: string | null; next_meeting_notes: string | null;
   client_id: number;
   client: { name: string; phone: string | null; contact_person: string | null; company: string | null; email: string | null };
   dealers: Array<{ id: number; name: string; city: string | null; phone: string | null }>;
   locations: Array<{ id: number; name: string; city: string; state: string; contact_person: string | null; contact_phone: string | null }>;
-  works: Array<{ id: number; title: string; status: string; priority: string; due_date: string | null }>;
+  works: Array<{ id: number; title: string; status: string; priority: string; due_date: string | null; amount: number | null }>;
   meetings: Array<{ id: number; meeting_at: string; purpose: string; created_by: string | null }>;
+  purchases: Purchase[];
+  expenses: Expense[];
+  payments: Payment[];
+  financials: Financials;
 };
 
-type ActivityItem = {
-  id: number;
-  action: string;
-  description: string;
-  user: string | null;
-  created_at: string;
-};
-
+type ActivityItem = { id: number; action: string; description: string; user: string | null; created_at: string };
 type DealerItem = { id: number; name: string; city: string | null; phone: string | null };
+
+type Tab = 'overview' | 'works' | 'purchases' | 'expenses' | 'payments' | 'meetings';
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'works', label: 'Works' },
+  { key: 'purchases', label: 'Purchases' },
+  { key: 'expenses', label: 'Expenses' },
+  { key: 'payments', label: 'Payments' },
+  { key: 'meetings', label: 'Meetings' },
+];
 
 const WORK_STATUSES = [
   { value: 'pending', label: 'Pending' },
@@ -63,13 +80,10 @@ function actionColor(action: string) {
   }
 }
 
-// IST = UTC + 5:30. Manual offset avoids Intl.DateTimeFormat timezone issues on Android/Hermes.
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function toIST(d: Date): Date {
-  return new Date(d.getTime() + IST_OFFSET_MS);
-}
+function toIST(d: Date): Date { return new Date(d.getTime() + IST_OFFSET_MS); }
 function istFmt(d: Date, showTime: boolean): string {
   const ist = toIST(d);
   const day = String(ist.getUTCDate()).padStart(2, '0');
@@ -81,23 +95,30 @@ function istFmt(d: Date, showTime: boolean): string {
   const h12 = h % 12 || 12;
   return `${day} ${mon} ${yr} · ${h12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
-function istHour(d: Date): number { return toIST(d).getUTCHours(); }
-function istMinute(d: Date): number { return toIST(d).getUTCMinutes(); }
-function istDay(d: Date): string { return String(toIST(d).getUTCDate()); }
-function istMonYr(d: Date): string {
-  const ist = toIST(d);
-  return `${MONTHS[ist.getUTCMonth()]} ${String(ist.getUTCFullYear()).slice(2)}`;
-}
-function istTime(d: Date): string {
-  const h = istHour(d), m = istMinute(d);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`;
-}
+function istHour(d: Date) { return toIST(d).getUTCHours(); }
+function istMinute(d: Date) { return toIST(d).getUTCMinutes(); }
+function istDay(d: Date) { return String(toIST(d).getUTCDate()); }
+function istMonYr(d: Date) { const ist = toIST(d); return `${MONTHS[ist.getUTCMonth()]} ${String(ist.getUTCFullYear()).slice(2)}`; }
+function istTime(d: Date) { const h = istHour(d), m = istMinute(d); const ampm = h >= 12 ? 'PM' : 'AM'; return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${ampm}`; }
 
-// Build an IST-offset ISO string from a local Date (device timezone = IST)
 function toISTISO(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00+05:30`;
+}
+
+function parseDate(iso: string | null): Date | null {
+  if (!iso) return null;
+  const s = iso.replace(' ', 'T');
+  if (!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) {
+    return new Date(s.includes('T') ? s + 'Z' : s + 'T00:00:00Z');
+  }
+  return new Date(s);
+}
+function fmt(iso: string | null): string | null { const d = parseDate(iso); return d ? istFmt(d, false) : null; }
+function fmtDT(iso: string | null): string | null { const d = parseDate(iso); return d ? istFmt(d, true) : null; }
+
+function fmtINR(n: number): string {
+  return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt: string) => void }) {
@@ -105,33 +126,17 @@ function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt
   const [iosPending, setIosPending] = useState<Date>(new Date());
   const [androidStep, setAndroidStep] = useState<'date' | 'time' | null>(null);
   const [androidDate, setAndroidDate] = useState<Date>(new Date());
-
   const display = value ? (() => { const d = parseDate(value); return d ? istFmt(d, true) : ''; })() : '';
 
   function handlePress() {
-    if (Platform.OS === 'android') {
-      setAndroidDate(value ? new Date(value) : new Date());
-      setAndroidStep('date');
-    } else {
-      setIosPending(value ? new Date(value) : new Date());
-      setIosOpen(true);
-    }
+    if (Platform.OS === 'android') { setAndroidDate(value ? new Date(value) : new Date()); setAndroidStep('date'); }
+    else { setIosPending(value ? new Date(value) : new Date()); setIosOpen(true); }
   }
-
-  function onAndroidDate(_: any, sel?: Date) {
-    if (!sel) { setAndroidStep(null); return; }
-    setAndroidDate(sel);
-    setAndroidStep('time');
-  }
-
+  function onAndroidDate(_: any, sel?: Date) { if (!sel) { setAndroidStep(null); return; } setAndroidDate(sel); setAndroidStep('time'); }
   function onAndroidTime(_: any, sel?: Date) {
     setAndroidStep(null);
     if (!sel) return;
-    // Combine date from androidDate with time from sel using LOCAL (device) values
-    const combined = new Date(
-      androidDate.getFullYear(), androidDate.getMonth(), androidDate.getDate(),
-      sel.getHours(), sel.getMinutes(), 0, 0,
-    );
+    const combined = new Date(androidDate.getFullYear(), androidDate.getMonth(), androidDate.getDate(), sel.getHours(), sel.getMinutes(), 0, 0);
     onChange(toISTISO(combined));
   }
 
@@ -139,41 +144,21 @@ function InlineDateTimeField({ value, onChange }: { value: string; onChange: (dt
     <View>
       <TouchableOpacity style={styles.dtBtn} onPress={handlePress} activeOpacity={0.7}>
         <Ionicons name="time-outline" size={18} color={value ? Colors.text : Colors.textMuted} style={{ marginRight: 8 }} />
-        <Text style={[styles.dtBtnText, !value && { color: Colors.textMuted }]}>
-          {display || 'Select date & time'}
-        </Text>
+        <Text style={[styles.dtBtnText, !value && { color: Colors.textMuted }]}>{display || 'Select date & time'}</Text>
         {value ? (
           <TouchableOpacity onPress={() => onChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 'auto' }}>
             <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
           </TouchableOpacity>
-        ) : (
-          <Ionicons name="chevron-down" size={16} color={Colors.textMuted} style={{ marginLeft: 'auto' }} />
-        )}
+        ) : <Ionicons name="chevron-down" size={16} color={Colors.textMuted} style={{ marginLeft: 'auto' }} />}
       </TouchableOpacity>
-
-      {Platform.OS === 'android' && androidStep === 'date' && (
-        <DateTimePicker mode="date" value={androidDate} onChange={onAndroidDate} />
-      )}
-      {Platform.OS === 'android' && androidStep === 'time' && (
-        <DateTimePicker mode="time" value={androidDate} onChange={onAndroidTime} is24Hour={false} />
-      )}
-
+      {Platform.OS === 'android' && androidStep === 'date' && <DateTimePicker mode="date" value={androidDate} onChange={onAndroidDate} />}
+      {Platform.OS === 'android' && androidStep === 'time' && <DateTimePicker mode="time" value={androidDate} onChange={onAndroidTime} is24Hour={false} />}
       {Platform.OS === 'ios' && iosOpen && (
         <View style={styles.iosInline}>
-          <DateTimePicker
-            mode="datetime"
-            value={iosPending}
-            onChange={(_, d) => { if (d) setIosPending(d); }}
-            display="spinner"
-            style={{ height: 180 }}
-          />
+          <DateTimePicker mode="datetime" value={iosPending} onChange={(_, d) => { if (d) setIosPending(d); }} display="spinner" style={{ height: 180 }} />
           <View style={styles.iosInlineRow}>
-            <TouchableOpacity onPress={() => setIosOpen(false)} style={styles.iosInlineBtn}>
-              <Text style={styles.iosInlineCancel}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => { onChange(toISTISO(iosPending)); setIosOpen(false); }} style={styles.iosInlineBtn}>
-              <Text style={styles.iosInlineDone}>Done</Text>
-            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setIosOpen(false)} style={styles.iosInlineBtn}><Text style={styles.iosInlineCancel}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => { onChange(toISTISO(iosPending)); setIosOpen(false); }} style={styles.iosInlineBtn}><Text style={styles.iosInlineDone}>Done</Text></TouchableOpacity>
           </View>
         </View>
       )}
@@ -187,37 +172,26 @@ function Row({ label, value, phone, email }: { label: string; value: string | nu
     <View style={dl.row}>
       <Text style={dl.label}>{label}</Text>
       {phone ? (
-        <TouchableOpacity onPress={() => Linking.openURL(`tel:${value}`)}>
-          <Text style={[dl.value, { color: Colors.info }]}>{value}</Text>
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => Linking.openURL(`tel:${value}`)}><Text style={[dl.value, { color: Colors.info }]}>{value}</Text></TouchableOpacity>
       ) : email ? (
-        <TouchableOpacity onPress={() => Linking.openURL(`mailto:${value}`)}>
-          <Text style={[dl.value, { color: Colors.info }]}>{value}</Text>
-        </TouchableOpacity>
-      ) : (
-        <Text style={dl.value}>{value}</Text>
-      )}
+        <TouchableOpacity onPress={() => Linking.openURL(`mailto:${value}`)}><Text style={[dl.value, { color: Colors.info }]}>{value}</Text></TouchableOpacity>
+      ) : <Text style={dl.value}>{value}</Text>}
     </View>
   );
 }
 
-// Parse server datetime strings — handles Z (UTC), +HH:MM offsets, and bare strings (treated as UTC for safety)
-function parseDate(iso: string | null): Date | null {
-  if (!iso) return null;
-  const s = iso.replace(' ', 'T');
-  if (!s.match(/Z$/i) && !s.match(/[+-]\d{2}:\d{2}$/)) {
-    // date-only strings (e.g. "2026-10-23") need T00:00:00Z, not just "Z"
-    return new Date(s.includes('T') ? s + 'Z' : s + 'T00:00:00Z');
-  }
-  return new Date(s);
-}
-function fmt(iso: string | null): string | null {
-  const d = parseDate(iso);
-  return d ? istFmt(d, false) : null;
-}
-function fmtDT(iso: string | null): string | null {
-  const d = parseDate(iso);
-  return d ? istFmt(d, true) : null;
+function KpiCard({ label, value, color, bg, icon }: { label: string; value: string; color: string; bg: string; icon: string }) {
+  return (
+    <View style={[kpi.card, { borderLeftColor: color, backgroundColor: bg }]}>
+      <View style={[kpi.iconWrap, { backgroundColor: color + '30' }]}>
+        <Ionicons name={icon as any} size={18} color={color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={kpi.label}>{label}</Text>
+        <Text style={[kpi.value, { color }]}>{value}</Text>
+      </View>
+    </View>
+  );
 }
 
 export default function ProjectDetailScreen() {
@@ -226,6 +200,7 @@ export default function ProjectDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
 
   // Log Meeting modal
   const [logModal, setLogModal] = useState(false);
@@ -256,7 +231,6 @@ export default function ProjectDetailScreen() {
   // Activity
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
-
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -264,13 +238,16 @@ export default function ProjectDetailScreen() {
     try {
       const res = await api.get(`/mobile/projects/${id}`);
       const d = res.data;
-      // Normalise — older server responses may omit these arrays
       setProject({
         ...d,
         dealers:   Array.isArray(d.dealers)   ? d.dealers   : [],
         locations: Array.isArray(d.locations) ? d.locations : [],
         works:     Array.isArray(d.works)     ? d.works     : [],
         meetings:  Array.isArray(d.meetings)  ? d.meetings  : [],
+        purchases: Array.isArray(d.purchases) ? d.purchases : [],
+        expenses:  Array.isArray(d.expenses)  ? d.expenses  : [],
+        payments:  Array.isArray(d.payments)  ? d.payments  : [],
+        financials: d.financials ?? { budget: 0, purchases_total: 0, expenses_total: 0, payments_total: 0, outstanding: 0 },
       });
     } catch (err: any) {
       const status = err?.response?.status;
@@ -294,90 +271,50 @@ export default function ProjectDetailScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   async function handleLogMeeting() {
-    if (!logDate.trim() || !logPurpose.trim()) {
-      Alert.alert('Required', 'Date and purpose are required.');
-      return;
-    }
+    if (!logDate.trim() || !logPurpose.trim()) { Alert.alert('Required', 'Date and purpose are required.'); return; }
     setLogSaving(true);
     try {
       await api.post(`/mobile/projects/${id}/meetings`, { meeting_at: logDate.trim(), purpose: logPurpose.trim() });
-      setLogModal(false);
-      setLogDate('');
-      setLogPurpose('');
-      load();
-    } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to log meeting.');
-    } finally {
-      setLogSaving(false);
-    }
+      setLogModal(false); setLogDate(''); setLogPurpose(''); load();
+    } catch (err: any) { Alert.alert('Error', err?.response?.data?.message ?? 'Failed to log meeting.'); }
+    finally { setLogSaving(false); }
   }
 
   async function handleDeleteMeeting(meetingId: number) {
     Alert.alert('Delete Meeting', 'Remove this meeting from history?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/mobile/projects/${id}/meetings/${meetingId}`);
-            load();
-          } catch { Alert.alert('Error', 'Failed to delete.'); }
-        },
-      },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await api.delete(`/mobile/projects/${id}/meetings/${meetingId}`); load(); }
+        catch { Alert.alert('Error', 'Failed to delete.'); }
+      }},
     ]);
   }
 
   async function handleCompleteMeeting() {
-    Alert.alert(
-      'Mark Meeting Done',
-      'This will log the meeting in history and clear the scheduled date.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Mark Done',
-          onPress: async () => {
-            try {
-              await api.patch(`/mobile/projects/${id}/meeting/complete`);
-              load();
-            } catch (err: any) {
-              Alert.alert('Error', err?.response?.data?.message ?? 'Failed to complete meeting.');
-            }
-          },
-        },
-      ],
-    );
+    Alert.alert('Mark Meeting Done', 'This will log the meeting in history and clear the scheduled date.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Mark Done', onPress: async () => {
+        try { await api.patch(`/mobile/projects/${id}/meeting/complete`); load(); }
+        catch (err: any) { Alert.alert('Error', err?.response?.data?.message ?? 'Failed to complete meeting.'); }
+      }},
+    ]);
   }
 
   async function handleSetMeeting() {
     setMeetingSaving(true);
     try {
-      await api.patch(`/mobile/projects/${id}/meeting`, {
-        next_meeting_at: meetingAt.trim() || null,
-        next_meeting_notes: meetingNotes.trim() || null,
-      });
-      setMeetingModal(false);
-      load();
-    } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to update meeting.');
-    } finally {
-      setMeetingSaving(false);
-    }
+      await api.patch(`/mobile/projects/${id}/meeting`, { next_meeting_at: meetingAt.trim() || null, next_meeting_notes: meetingNotes.trim() || null });
+      setMeetingModal(false); load();
+    } catch (err: any) { Alert.alert('Error', err?.response?.data?.message ?? 'Failed to update meeting.'); }
+    finally { setMeetingSaving(false); }
   }
 
-  function openMeetingModal() {
-    setMeetingAt(project?.next_meeting_at ?? '');
-    setMeetingNotes(project?.next_meeting_notes ?? '');
-    setMeetingModal(true);
-  }
+  function openMeetingModal() { setMeetingAt(project?.next_meeting_at ?? ''); setMeetingNotes(project?.next_meeting_notes ?? ''); setMeetingModal(true); }
 
   async function openContactModal() {
-    setDealerSearch('');
-    setShowCreateContact(false);
+    setDealerSearch(''); setShowCreateContact(false);
     setNewContactName(''); setNewContactPhone(''); setNewContactCity('');
-    try {
-      const res = await api.get('/mobile/dealers');
-      setDealers(res.data ?? []);
-    } catch { /* ignore */ }
+    try { const res = await api.get('/mobile/dealers'); setDealers(res.data ?? []); } catch { }
     setContactModal(true);
   }
 
@@ -392,42 +329,27 @@ export default function ProjectDetailScreen() {
       const newId = createRes.data?.id;
       if (!newId) throw new Error('No ID returned');
       await api.post(`/mobile/projects/${id}/contacts`, { dealer_id: newId });
-      setContactModal(false);
-      setShowCreateContact(false);
+      setContactModal(false); setShowCreateContact(false);
       setNewContactName(''); setNewContactPhone(''); setNewContactCity('');
       load();
-    } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to create contact.');
-    } finally {
-      setCreatingContact(false);
-    }
+    } catch (err: any) { Alert.alert('Error', err?.response?.data?.message ?? 'Failed to create contact.'); }
+    finally { setCreatingContact(false); }
   }
 
   async function handleAddContact(dealerId: number) {
     setContactSaving(true);
-    try {
-      await api.post(`/mobile/projects/${id}/contacts`, { dealer_id: dealerId });
-      setContactModal(false);
-      load();
-    } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message ?? 'Failed to add contact.');
-    } finally {
-      setContactSaving(false);
-    }
+    try { await api.post(`/mobile/projects/${id}/contacts`, { dealer_id: dealerId }); setContactModal(false); load(); }
+    catch (err: any) { Alert.alert('Error', err?.response?.data?.message ?? 'Failed to add contact.'); }
+    finally { setContactSaving(false); }
   }
 
   async function handleRemoveContact(dealerId: number) {
     Alert.alert('Remove Contact', 'Remove this contact from the project?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove', style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/mobile/projects/${id}/contacts`, { data: { dealer_id: dealerId } });
-            load();
-          } catch { Alert.alert('Error', 'Failed to remove contact.'); }
-        },
-      },
+      { text: 'Remove', style: 'destructive', onPress: async () => {
+        try { await api.delete(`/mobile/projects/${id}/contacts`, { data: { dealer_id: dealerId } }); load(); }
+        catch { Alert.alert('Error', 'Failed to remove contact.'); }
+      }},
     ]);
   }
 
@@ -435,34 +357,51 @@ export default function ProjectDetailScreen() {
     setUpdatingWork(workId);
     try {
       await api.patch(`/mobile/works/${workId}`, { status: newStatus });
-      setProject((prev) => prev ? {
-        ...prev,
-        works: prev.works.map((w) => w.id === workId ? { ...w, status: newStatus } : w),
-      } : prev);
+      setProject((prev) => prev ? { ...prev, works: prev.works.map((w) => w.id === workId ? { ...w, status: newStatus } : w) } : prev);
     } catch { Alert.alert('Error', 'Failed to update status.'); }
     finally { setUpdatingWork(null); }
   }
 
+  async function handleDeletePurchase(purchaseId: number) {
+    Alert.alert('Delete Purchase', 'Delete this purchase record?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await api.delete(`/mobile/purchases/${purchaseId}`); load(); }
+        catch { Alert.alert('Error', 'Failed to delete.'); }
+      }},
+    ]);
+  }
+
+  async function handleDeleteExpense(expenseId: number) {
+    Alert.alert('Delete Expense', 'Delete this expense record?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await api.delete(`/mobile/expenses/${expenseId}`); load(); }
+        catch { Alert.alert('Error', 'Failed to delete.'); }
+      }},
+    ]);
+  }
+
+  async function handleDeletePayment(paymentId: number) {
+    Alert.alert('Delete Payment', 'Delete this payment record?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await api.delete(`/mobile/payments/${paymentId}`); load(); }
+        catch { Alert.alert('Error', 'Failed to delete.'); }
+      }},
+    ]);
+  }
+
   function handleDeleteProject() {
-    Alert.alert(
-      'Delete Project',
-      `Are you sure you want to delete "${project?.name}"? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete', style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await api.delete(`/mobile/projects/${id}`);
-              router.replace('/(tabs)/projects');
-            } catch (err: any) {
-              Alert.alert('Error', err?.response?.data?.message ?? 'Failed to delete.');
-            } finally { setDeleting(false); }
-          },
-        },
-      ]
-    );
+    Alert.alert('Delete Project', `Are you sure you want to delete "${project?.name}"? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        setDeleting(true);
+        try { await api.delete(`/mobile/projects/${id}`); router.replace('/(tabs)/projects'); }
+        catch (err: any) { Alert.alert('Error', err?.response?.data?.message ?? 'Failed to delete.'); }
+        finally { setDeleting(false); }
+      }},
+    ]);
   }
 
   if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={Colors.accent} /></View>;
@@ -473,9 +412,18 @@ export default function ProjectDetailScreen() {
     </View>
   );
 
+  const fin = project.financials;
   const meetingDays = project.next_meeting_at
-    ? Math.round((new Date(project.next_meeting_at).getTime() - Date.now()) / 86400000)
-    : null;
+    ? Math.round((new Date(project.next_meeting_at).getTime() - Date.now()) / 86400000) : null;
+
+  const tabCounts: Record<Tab, number> = {
+    overview: 0,
+    works: project.works.length,
+    purchases: project.purchases.length,
+    expenses: project.expenses.length,
+    payments: project.payments.length,
+    meetings: project.meetings.length + (project.next_meeting_at ? 1 : 0),
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -484,10 +432,7 @@ export default function ProjectDetailScreen() {
         subtitle={project.name}
         right={
           <View style={styles.headerBtns}>
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: '/(tabs)/projects/form', params: { id: String(project.id) } })}
-              style={styles.editBtn}
-            >
+            <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/projects/form', params: { id: String(project.id) } })} style={styles.editBtn}>
               <Ionicons name="create-outline" size={20} color={Colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleDeleteProject} style={styles.deleteBtn} disabled={deleting}>
@@ -496,132 +441,185 @@ export default function ProjectDetailScreen() {
           </View>
         }
       />
-      <ScrollView
-          contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.accent} />}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Project header */}
-          <View style={styles.heroCard}>
-            <View style={styles.heroTop}>
-              <Text style={styles.heroTitle} numberOfLines={2}>{project.name}</Text>
-              <Badge status={project.status} />
-            </View>
-            <Text style={styles.heroSub}>{project.project_number}{project.type_of_work ? ` · ${project.type_of_work}` : ''}</Text>
-          </View>
 
-          {/* Next Meeting */}
-          <Card style={styles.meetingCard}>
-            <View style={styles.meetingBannerRow}>
-              <Ionicons name="calendar" size={20} color={Colors.accent} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                {project.next_meeting_at ? (
-                  <>
-                    <Text style={styles.meetingBannerLabel}>Next Meeting / Site Visit</Text>
-                    <Text style={styles.meetingBannerDate}>{fmtDT(project.next_meeting_at)}</Text>
-                    {project.next_meeting_notes && <Text style={styles.meetingBannerNotes}>{project.next_meeting_notes}</Text>}
-                  </>
-                ) : (
-                  <Text style={styles.meetingBannerLabel}>No meeting scheduled</Text>
-                )}
+      {/* Tab Bar */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={styles.tabBarContent}>
+        {TABS.map((tab) => (
+          <TouchableOpacity key={tab.key} style={[styles.tabItem, activeTab === tab.key && styles.tabItemActive]} onPress={() => setActiveTab(tab.key)}>
+            <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
+            {tabCounts[tab.key] > 0 && (
+              <View style={[styles.tabBadge, activeTab === tab.key && styles.tabBadgeActive]}>
+                <Text style={[styles.tabBadgeText, activeTab === tab.key && styles.tabBadgeTextActive]}>{tabCounts[tab.key]}</Text>
               </View>
-              {meetingDays !== null && (
-                <View style={[styles.daysBadge, meetingDays === 0 ? { backgroundColor: Colors.warningBg } : meetingDays < 0 ? { backgroundColor: Colors.dangerBg } : { backgroundColor: Colors.infoBg }]}>
-                  <Text style={[styles.daysBadgeText, { color: meetingDays < 0 ? Colors.danger : meetingDays === 0 ? Colors.warning : Colors.info }]}>
-                    {meetingDays === 0 ? 'Today' : meetingDays < 0 ? `${Math.abs(meetingDays)}d ago` : `${meetingDays}d`}
-                  </Text>
-                </View>
-              )}
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.accent} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── OVERVIEW TAB ── */}
+        {activeTab === 'overview' && (
+          <>
+            <View style={styles.heroCard}>
+              <View style={styles.heroTop}>
+                <Text style={styles.heroTitle} numberOfLines={2}>{project.name}</Text>
+                <Badge status={project.status} />
+              </View>
+              <Text style={styles.heroSub}>{project.project_number}{project.type_of_work ? ` · ${project.type_of_work}` : ''}</Text>
             </View>
-            <View style={styles.meetingActions}>
-              {project.next_meeting_at && (
-                <TouchableOpacity style={[styles.meetingSetBtn, styles.meetingDoneBtn]} onPress={handleCompleteMeeting}>
-                  <Ionicons name="checkmark-circle-outline" size={14} color={Colors.success} />
-                  <Text style={[styles.meetingSetBtnText, { color: Colors.success }]}>Mark Done</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={styles.meetingSetBtn} onPress={openMeetingModal}>
-                <Ionicons name="pencil-outline" size={14} color={Colors.accent} />
-                <Text style={styles.meetingSetBtnText}>{project.next_meeting_at ? 'Update' : 'Schedule Meeting'}</Text>
-              </TouchableOpacity>
+
+            {/* Financial KPIs */}
+            <Text style={styles.sectionLabel}>Financial Summary</Text>
+            <View style={styles.kpiRow}>
+              {fin.budget > 0 && <KpiCard label="Budget" value={fmtINR(fin.budget)} color="#2563EB" bg="#EFF6FF" icon="wallet-outline" />}
+              <KpiCard label="Purchases" value={fmtINR(fin.purchases_total)} color="#0E7490" bg="#ECFEFF" icon="cart-outline" />
             </View>
-          </Card>
-
-          {/* Details */}
-          <Card title="Project Details">
-            <Row label="Customer" value={project.client.name} />
-            <Row label="Company" value={project.client.company} />
-            <Row label="Contact" value={project.client.contact_person} />
-            <Row label="Phone" value={project.client.phone} phone />
-            <Row label="Email" value={project.client.email} email />
-            <Row label="Start Date" value={fmt(project.start_date)} />
-            <Row label="Expected End" value={fmt(project.expected_end_date)} />
-            {project.budget && <Row label="Budget" value={`₹${Number(project.budget).toLocaleString('en-IN')}`} />}
-            {project.description && <Row label="Description" value={project.description} />}
-            {project.notes && <Row label="Notes" value={project.notes} />}
-          </Card>
-
-          {/* Locations */}
-          {project.locations.length > 0 && (
-            <Card title={`Locations (${project.locations.length})`}>
-              {project.locations.map((loc, i) => (
-                <View key={loc.id} style={[styles.locRow, i > 0 && styles.locBorder]}>
-                  <Text style={styles.locName}>{loc.name}</Text>
-                  <Text style={styles.locAddr}>{[loc.city, loc.state].filter(Boolean).join(', ')}</Text>
-                  {loc.contact_person && <Text style={styles.locContact}>{loc.contact_person}{loc.contact_phone ? ` · ${loc.contact_phone}` : ''}</Text>}
+            <View style={styles.kpiRow}>
+              <KpiCard label="Expenses" value={fmtINR(fin.expenses_total)} color="#B45309" bg="#FFFBEB" icon="receipt-outline" />
+              <KpiCard label="Collection" value={fmtINR(fin.payments_total)} color="#15803D" bg="#F0FDF4" icon="cash-outline" />
+            </View>
+            {/* Balance Due strip */}
+            <View style={[styles.balanceStrip, { backgroundColor: fin.outstanding <= 0 ? '#F0FDF4' : '#FEF2F2', borderColor: fin.outstanding <= 0 ? '#BBF7D0' : '#FECACA' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.balanceIcon, { backgroundColor: fin.outstanding <= 0 ? '#DCFCE7' : '#FEE2E2' }]}>
+                  <Ionicons name={fin.outstanding <= 0 ? 'checkmark-circle' : 'hourglass-outline'} size={20} color={fin.outstanding <= 0 ? Colors.success : Colors.danger} />
                 </View>
-              ))}
-            </Card>
-          )}
+                <View>
+                  <Text style={styles.balanceLabel}>Balance Due</Text>
+                  <Text style={styles.balanceSub}>{fin.outstanding <= 0 ? 'Fully collected' : 'Amount still outstanding'}</Text>
+                </View>
+              </View>
+              <Text style={[styles.balanceValue, { color: fin.outstanding <= 0 ? Colors.success : Colors.danger }]}>
+                {fmtINR(Math.abs(fin.outstanding))}
+              </Text>
+            </View>
 
-          {/* Contacts */}
-          <Card
-            title={`Contacts (${project.dealers.length})`}
-            titleRight={
-              <TouchableOpacity onPress={openContactModal}>
-                <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
-              </TouchableOpacity>
-            }
-          >
-            {project.dealers.length === 0 ? (
-              <TouchableOpacity style={styles.addContactBtn} onPress={openContactModal}>
-                <Ionicons name="person-add-outline" size={18} color={Colors.accent} />
-                <Text style={styles.addContactText}>Assign a contact</Text>
-              </TouchableOpacity>
-            ) : (
-              project.dealers.map((d, i) => (
-                <View key={d.id} style={[styles.contactRow, i > 0 && styles.locBorder]}>
-                  <View style={styles.contactAvatar}>
-                    <Text style={styles.contactInitials}>
-                      {d.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')}
+            {/* Next Meeting */}
+            <Card style={styles.meetingCard}>
+              <View style={styles.meetingBannerRow}>
+                <Ionicons name="calendar" size={20} color={Colors.accent} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  {project.next_meeting_at ? (
+                    <>
+                      <Text style={styles.meetingBannerLabel}>Next Meeting / Site Visit</Text>
+                      <Text style={styles.meetingBannerDate}>{fmtDT(project.next_meeting_at)}</Text>
+                      {project.next_meeting_notes && <Text style={styles.meetingBannerNotes}>{project.next_meeting_notes}</Text>}
+                    </>
+                  ) : <Text style={styles.meetingBannerLabel}>No meeting scheduled</Text>}
+                </View>
+                {meetingDays !== null && (
+                  <View style={[styles.daysBadge, meetingDays === 0 ? { backgroundColor: Colors.warningBg } : meetingDays < 0 ? { backgroundColor: Colors.dangerBg } : { backgroundColor: Colors.infoBg }]}>
+                    <Text style={[styles.daysBadgeText, { color: meetingDays < 0 ? Colors.danger : meetingDays === 0 ? Colors.warning : Colors.info }]}>
+                      {meetingDays === 0 ? 'Today' : meetingDays < 0 ? `${Math.abs(meetingDays)}d ago` : `${meetingDays}d`}
                     </Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.contactName}>{d.name}</Text>
-                    {d.city ? <Text style={styles.contactMeta}>{d.city}</Text> : null}
-                    {d.phone ? (
-                      <TouchableOpacity onPress={() => Linking.openURL(`tel:${d.phone}`)}>
-                        <Text style={[styles.contactMeta, { color: Colors.info }]}>{d.phone}</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                  <TouchableOpacity onPress={() => handleRemoveContact(d.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name="close-circle-outline" size={20} color={Colors.danger} />
+                )}
+              </View>
+              <View style={styles.meetingActions}>
+                {project.next_meeting_at && (
+                  <TouchableOpacity style={[styles.meetingSetBtn, styles.meetingDoneBtn]} onPress={handleCompleteMeeting}>
+                    <Ionicons name="checkmark-circle-outline" size={14} color={Colors.success} />
+                    <Text style={[styles.meetingSetBtnText, { color: Colors.success }]}>Mark Done</Text>
                   </TouchableOpacity>
-                </View>
-              ))
-            )}
-          </Card>
+                )}
+                <TouchableOpacity style={styles.meetingSetBtn} onPress={openMeetingModal}>
+                  <Ionicons name="pencil-outline" size={14} color={Colors.accent} />
+                  <Text style={styles.meetingSetBtnText}>{project.next_meeting_at ? 'Update' : 'Schedule Meeting'}</Text>
+                </TouchableOpacity>
+              </View>
+            </Card>
 
-          {/* Works */}
-          <Card
-            title={`Works (${project.works.length})`}
-            titleRight={
-              <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/works/form', params: { projectId: String(project.id) } })}>
-                <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
-              </TouchableOpacity>
-            }
-          >
+            {/* Details */}
+            <Card title="Project Details">
+              <Row label="Customer" value={project.client.name} />
+              <Row label="Company" value={project.client.company} />
+              <Row label="Contact" value={project.client.contact_person} />
+              <Row label="Phone" value={project.client.phone} phone />
+              <Row label="Email" value={project.client.email} email />
+              <Row label="Start Date" value={fmt(project.start_date)} />
+              <Row label="Expected End" value={fmt(project.expected_end_date)} />
+              {project.budget && <Row label="Budget" value={`₹${Number(project.budget).toLocaleString('en-IN')}`} />}
+              {project.description && <Row label="Description" value={project.description} />}
+              {project.notes && <Row label="Notes" value={project.notes} />}
+            </Card>
+
+            {/* Locations */}
+            {project.locations.length > 0 && (
+              <Card title={`Locations (${project.locations.length})`}>
+                {project.locations.map((loc, i) => (
+                  <View key={loc.id} style={[styles.locRow, i > 0 && styles.locBorder]}>
+                    <Text style={styles.locName}>{loc.name}</Text>
+                    <Text style={styles.locAddr}>{[loc.city, loc.state].filter(Boolean).join(', ')}</Text>
+                    {loc.contact_person && <Text style={styles.locContact}>{loc.contact_person}{loc.contact_phone ? ` · ${loc.contact_phone}` : ''}</Text>}
+                  </View>
+                ))}
+              </Card>
+            )}
+
+            {/* Contacts */}
+            <Card title={`Contacts (${project.dealers.length})`} titleRight={
+              <TouchableOpacity onPress={openContactModal}><Ionicons name="add-circle-outline" size={22} color={Colors.accent} /></TouchableOpacity>
+            }>
+              {project.dealers.length === 0 ? (
+                <TouchableOpacity style={styles.addContactBtn} onPress={openContactModal}>
+                  <Ionicons name="person-add-outline" size={18} color={Colors.accent} />
+                  <Text style={styles.addContactText}>Assign a contact</Text>
+                </TouchableOpacity>
+              ) : (
+                project.dealers.map((d, i) => (
+                  <View key={d.id} style={[styles.contactRow, i > 0 && styles.locBorder]}>
+                    <View style={styles.contactAvatar}>
+                      <Text style={styles.contactInitials}>{d.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.contactName}>{d.name}</Text>
+                      {d.city ? <Text style={styles.contactMeta}>{d.city}</Text> : null}
+                      {d.phone ? (
+                        <TouchableOpacity onPress={() => Linking.openURL(`tel:${d.phone}`)}>
+                          <Text style={[styles.contactMeta, { color: Colors.info }]}>{d.phone}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                    <TouchableOpacity onPress={() => handleRemoveContact(d.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name="close-circle-outline" size={20} color={Colors.danger} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </Card>
+
+            {/* Activity */}
+            <Card title="Activity">
+              {activityLoading ? (
+                <ActivityIndicator size="small" color={Colors.accent} style={{ paddingVertical: 12 }} />
+              ) : activity.length === 0 ? (
+                <Text style={styles.empty}>No activity recorded yet.</Text>
+              ) : (
+                activity.map((a, i) => (
+                  <View key={a.id} style={[styles.activityRow, i > 0 && styles.locBorder]}>
+                    <View style={[styles.activityDot, { backgroundColor: actionColor(a.action) }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.activityDesc}>{a.description}</Text>
+                      <Text style={styles.activityMeta}>{a.user ? `${a.user} · ` : ''}{(() => { const d = parseDate(a.created_at); return d ? istFmt(d, true) : ''; })()}</Text>
+                    </View>
+                  </View>
+                ))
+              )}
+            </Card>
+          </>
+        )}
+
+        {/* ── WORKS TAB ── */}
+        {activeTab === 'works' && (
+          <Card title={`Works (${project.works.length})`} titleRight={
+            <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/works/form', params: { projectId: String(project.id) } })}>
+              <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
+            </TouchableOpacity>
+          }>
             {project.works.length === 0 ? (
               <Text style={styles.empty}>No works yet. Tap + to add.</Text>
             ) : (
@@ -630,20 +628,11 @@ export default function ProjectDetailScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.workTitle} numberOfLines={1}>{w.title}</Text>
                     {w.due_date && <Text style={styles.workDue}>Due {fmt(w.due_date)}</Text>}
-                    {/* Status chips */}
+                    {w.amount !== null && <Text style={[styles.workDue, { color: Colors.textSecondary }]}>Amount: {fmtINR(w.amount)}</Text>}
                     <View style={styles.statusChips}>
                       {WORK_STATUSES.map((opt) => (
-                        <TouchableOpacity
-                          key={opt.value}
-                          style={[styles.statusChip, w.status === opt.value && styles.statusChipActive]}
-                          onPress={() => handleWorkStatus(w.id, opt.value)}
-                          disabled={updatingWork === w.id}
-                        >
-                          {updatingWork === w.id && w.status !== opt.value ? null : (
-                            <Text style={[styles.statusChipText, w.status === opt.value && styles.statusChipTextActive]}>
-                              {opt.label}
-                            </Text>
-                          )}
+                        <TouchableOpacity key={opt.value} style={[styles.statusChip, w.status === opt.value && styles.statusChipActive]} onPress={() => handleWorkStatus(w.id, opt.value)} disabled={updatingWork === w.id}>
+                          <Text style={[styles.statusChipText, w.status === opt.value && styles.statusChipTextActive]}>{opt.label}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -653,73 +642,158 @@ export default function ProjectDetailScreen() {
               ))
             )}
           </Card>
+        )}
 
-          {/* Meeting History */}
+        {/* ── PURCHASES TAB ── */}
+        {activeTab === 'purchases' && (
+          <Card
+            title={`Purchases — ${fmtINR(fin.purchases_total)}`}
+            titleRight={
+              <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/purchases/form' as any, params: { projectId: String(project.id) } })}>
+                <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
+              </TouchableOpacity>
+            }
+          >
+            {project.purchases.length === 0 ? (
+              <Text style={styles.empty}>No purchases yet. Tap + to add.</Text>
+            ) : (
+              project.purchases.map((p, i) => (
+                <View key={p.id} style={[styles.finRow, i > 0 && styles.locBorder]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.finTitle}>{p.product_name ?? 'Unknown product'}</Text>
+                    {p.supplier && <Text style={styles.finSub}>{p.supplier}</Text>}
+                    <Text style={styles.finSub}>{fmt(p.purchase_date) ?? '—'} · {p.quantity} {p.product_unit ?? ''} × {fmtINR(p.unit_amount)}</Text>
+                  </View>
+                  <View style={styles.finRight}>
+                    <Text style={styles.finAmount}>{fmtINR(p.line_total)}</Text>
+                    <View style={styles.finActions}>
+                      <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/purchases/form' as any, params: { id: String(p.id), projectId: String(project.id) } })} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="pencil-outline" size={16} color={Colors.textSecondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeletePurchase(p.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
+          </Card>
+        )}
+
+        {/* ── EXPENSES TAB ── */}
+        {activeTab === 'expenses' && (
+          <Card
+            title={`Expenses — ${fmtINR(fin.expenses_total)}`}
+            titleRight={
+              <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/expenses/form' as any, params: { projectId: String(project.id) } })}>
+                <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
+              </TouchableOpacity>
+            }
+          >
+            {project.expenses.length === 0 ? (
+              <Text style={styles.empty}>No expenses yet. Tap + to add.</Text>
+            ) : (
+              project.expenses.map((e, i) => (
+                <View key={e.id} style={[styles.finRow, i > 0 && styles.locBorder]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.finTitle}>{e.heading}</Text>
+                    {e.category && <Text style={styles.finSub}>{e.category}</Text>}
+                    <Text style={styles.finSub}>{fmt(e.expense_date) ?? '—'}{e.payment_method ? ` · ${e.payment_method}` : ''}</Text>
+                  </View>
+                  <View style={styles.finRight}>
+                    <Text style={styles.finAmount}>{fmtINR(e.amount)}</Text>
+                    <View style={styles.finActions}>
+                      <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/expenses/form' as any, params: { id: String(e.id), projectId: String(project.id) } })} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="pencil-outline" size={16} color={Colors.textSecondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteExpense(e.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
+          </Card>
+        )}
+
+        {/* ── PAYMENTS TAB ── */}
+        {activeTab === 'payments' && (
+          <Card
+            title={`Payments Received — ${fmtINR(fin.payments_total)}`}
+            titleRight={
+              <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/payments/form' as any, params: { projectId: String(project.id) } })}>
+                <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
+              </TouchableOpacity>
+            }
+          >
+            {project.payments.length === 0 ? (
+              <Text style={styles.empty}>No payments yet. Tap + to add.</Text>
+            ) : (
+              project.payments.map((p, i) => (
+                <View key={p.id} style={[styles.finRow, i > 0 && styles.locBorder]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.finTitle}>{fmt(p.payment_date) ?? '—'}</Text>
+                    {p.payment_method && <Text style={styles.finSub}>{p.payment_method}</Text>}
+                    {p.receipt_reference && <Text style={styles.finSub}>Ref: {p.receipt_reference}</Text>}
+                  </View>
+                  <View style={styles.finRight}>
+                    <Text style={[styles.finAmount, { color: Colors.success }]}>{fmtINR(p.amount_received)}</Text>
+                    <View style={styles.finActions}>
+                      <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/payments/form' as any, params: { id: String(p.id), projectId: String(project.id) } })} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="pencil-outline" size={16} color={Colors.textSecondary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeletePayment(p.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
+          </Card>
+        )}
+
+        {/* ── MEETINGS TAB ── */}
+        {activeTab === 'meetings' && (
           <Card
             title={`Meetings (${project.meetings.length + (project.next_meeting_at ? 1 : 0)})`}
             titleRight={
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TouchableOpacity onPress={openMeetingModal}>
-                  <Ionicons name="calendar-outline" size={22} color={Colors.accent} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setLogDate(''); setLogPurpose(''); setLogModal(true); }}>
-                  <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
-                </TouchableOpacity>
+                <TouchableOpacity onPress={openMeetingModal}><Ionicons name="calendar-outline" size={22} color={Colors.accent} /></TouchableOpacity>
+                <TouchableOpacity onPress={() => { setLogDate(''); setLogPurpose(''); setLogModal(true); }}><Ionicons name="add-circle-outline" size={22} color={Colors.accent} /></TouchableOpacity>
               </View>
             }
           >
-            {/* Upcoming meeting row */}
             {project.next_meeting_at && (
               <View style={styles.upcomingRow}>
                 <View style={[styles.historyDateBox, { borderColor: Colors.accent + '40', backgroundColor: Colors.accent + '10' }]}>
-                  <Text style={[styles.historyDay, { color: Colors.accent }]}>
-                    {(() => { const d = parseDate(project.next_meeting_at); return d ? istDay(d) : ''; })()}
-                  </Text>
-                  <Text style={[styles.historyMonth, { color: Colors.accent }]}>
-                    {(() => { const d = parseDate(project.next_meeting_at); return d ? istMonYr(d) : ''; })()}
-                  </Text>
+                  <Text style={[styles.historyDay, { color: Colors.accent }]}>{(() => { const d = parseDate(project.next_meeting_at); return d ? istDay(d) : ''; })()}</Text>
+                  <Text style={[styles.historyMonth, { color: Colors.accent }]}>{(() => { const d = parseDate(project.next_meeting_at); return d ? istMonYr(d) : ''; })()}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <View style={styles.upcomingBadgeWrap}>
-                    <View style={styles.upcomingBadge}><Text style={styles.upcomingBadgeText}>UPCOMING</Text></View>
-                  </View>
-                  <Text style={styles.historyTime}>
-                    {(() => { const d = parseDate(project.next_meeting_at); return d ? istTime(d) : ''; })()}
-                  </Text>
+                  <View style={styles.upcomingBadgeWrap}><View style={styles.upcomingBadge}><Text style={styles.upcomingBadgeText}>UPCOMING</Text></View></View>
+                  <Text style={styles.historyTime}>{(() => { const d = parseDate(project.next_meeting_at); return d ? istTime(d) : ''; })()}</Text>
                   {project.next_meeting_notes ? <Text style={[styles.historyPurpose, { marginTop: 1 }]} numberOfLines={1}>{project.next_meeting_notes}</Text> : null}
                 </View>
-                <TouchableOpacity
-                  style={styles.logBtn}
-                  onPress={() => {
-                    setLogDate(project.next_meeting_at ?? '');
-                    setLogPurpose(project.next_meeting_notes ?? '');
-                    setLogModal(true);
-                  }}
-                >
+                <TouchableOpacity style={styles.logBtn} onPress={() => { setLogDate(project.next_meeting_at ?? ''); setLogPurpose(project.next_meeting_notes ?? ''); setLogModal(true); }}>
                   <Text style={styles.logBtnText}>Log</Text>
                 </TouchableOpacity>
               </View>
             )}
-
             {project.meetings.length === 0 && !project.next_meeting_at ? (
               <Text style={styles.empty}>No meetings yet. Tap 📅 to schedule or + to log.</Text>
             ) : (
               project.meetings.map((m, i) => (
                 <View key={m.id} style={[styles.historyRow, (i > 0 || project.next_meeting_at) && styles.locBorder]}>
                   <View style={styles.historyDateBox}>
-                    <Text style={styles.historyDay}>
-                      {(() => { const d = parseDate(m.meeting_at); return d ? istDay(d) : ''; })()}
-                    </Text>
-                    <Text style={styles.historyMonth}>
-                      {(() => { const d = parseDate(m.meeting_at); return d ? istMonYr(d) : ''; })()}
-                    </Text>
+                    <Text style={styles.historyDay}>{(() => { const d = parseDate(m.meeting_at); return d ? istDay(d) : ''; })()}</Text>
+                    <Text style={styles.historyMonth}>{(() => { const d = parseDate(m.meeting_at); return d ? istMonYr(d) : ''; })()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.historyPurpose}>{m.purpose}</Text>
-                    <Text style={styles.historyTime}>
-                      {(() => { const d = parseDate(m.meeting_at); return d ? istTime(d) : ''; })()}
-                      {m.created_by ? ` · ${m.created_by}` : ''}
-                    </Text>
+                    <Text style={styles.historyTime}>{(() => { const d = parseDate(m.meeting_at); return d ? istTime(d) : ''; })()}{m.created_by ? ` · ${m.created_by}` : ''}</Text>
                   </View>
                   <TouchableOpacity onPress={() => handleDeleteMeeting(m.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="trash-outline" size={16} color={Colors.danger} />
@@ -728,27 +802,8 @@ export default function ProjectDetailScreen() {
               ))
             )}
           </Card>
-          {/* Activity */}
-          <Card title="Activity">
-            {activityLoading ? (
-              <ActivityIndicator size="small" color={Colors.accent} style={{ paddingVertical: 12 }} />
-            ) : activity.length === 0 ? (
-              <Text style={styles.empty}>No activity recorded yet.</Text>
-            ) : (
-              activity.map((a, i) => (
-                <View key={a.id} style={[styles.activityRow, i > 0 && styles.locBorder]}>
-                  <View style={[styles.activityDot, { backgroundColor: actionColor(a.action) }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.activityDesc}>{a.description}</Text>
-                    <Text style={styles.activityMeta}>
-                      {a.user ? `${a.user} · ` : ''}{(() => { const d = parseDate(a.created_at); return d ? istFmt(d, true) : ''; })()}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            )}
-          </Card>
-        </ScrollView>
+        )}
+      </ScrollView>
 
       {/* Log Meeting Modal */}
       <Modal visible={logModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setLogModal(false)}>
@@ -759,16 +814,7 @@ export default function ProjectDetailScreen() {
               <Text style={styles.modalLabel}>Date & Time</Text>
               <InlineDateTimeField value={logDate} onChange={setLogDate} />
               <Text style={styles.modalLabel}>Purpose</Text>
-              <TextInput
-                style={[styles.modalInput, styles.modalInputMulti]}
-                value={logPurpose}
-                onChangeText={setLogPurpose}
-                placeholder="What was discussed / purpose of meeting…"
-                placeholderTextColor={Colors.textMuted}
-                multiline
-                numberOfLines={3}
-                maxLength={500}
-              />
+              <TextInput style={[styles.modalInput, styles.modalInputMulti]} value={logPurpose} onChangeText={setLogPurpose} placeholder="What was discussed…" placeholderTextColor={Colors.textMuted} multiline numberOfLines={3} maxLength={500} />
               <TouchableOpacity style={styles.modalBtn} onPress={handleLogMeeting} disabled={logSaving}>
                 {logSaving ? <ActivityIndicator color={Colors.primary} /> : <Text style={styles.modalBtnText}>Log Meeting</Text>}
               </TouchableOpacity>
@@ -786,22 +832,12 @@ export default function ProjectDetailScreen() {
               <Text style={styles.modalLabel}>Date & Time</Text>
               <InlineDateTimeField value={meetingAt} onChange={setMeetingAt} />
               <Text style={styles.modalLabel}>Notes</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={meetingNotes}
-                onChangeText={setMeetingNotes}
-                placeholder="e.g. Site inspection with client"
-                placeholderTextColor={Colors.textMuted}
-                maxLength={250}
-              />
+              <TextInput style={styles.modalInput} value={meetingNotes} onChangeText={setMeetingNotes} placeholder="e.g. Site inspection with client" placeholderTextColor={Colors.textMuted} maxLength={250} />
               <TouchableOpacity style={styles.modalBtn} onPress={handleSetMeeting} disabled={meetingSaving}>
                 {meetingSaving ? <ActivityIndicator color={Colors.primary} /> : <Text style={styles.modalBtnText}>Save Schedule</Text>}
               </TouchableOpacity>
               {project.next_meeting_at && (
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: Colors.dangerBg, marginTop: 8 }]}
-                  onPress={() => { setMeetingAt(''); setMeetingNotes(''); handleSetMeeting(); }}
-                >
+                <TouchableOpacity style={[styles.modalBtn, { backgroundColor: Colors.dangerBg, marginTop: 8 }]} onPress={() => { setMeetingAt(''); setMeetingNotes(''); handleSetMeeting(); }}>
                   <Text style={[styles.modalBtnText, { color: Colors.danger }]}>Clear Schedule</Text>
                 </TouchableOpacity>
               )}
@@ -809,117 +845,55 @@ export default function ProjectDetailScreen() {
           </KeyboardAvoidingView>
         </RNSafeAreaView>
       </Modal>
+
       {/* Assign Contact Modal */}
       <Modal visible={contactModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setContactModal(false)}>
         <RNSafeAreaView style={styles.modal}>
-          <ModalHeader
-            title="Assign Contact"
-            onBack={() => setContactModal(false)}
-            right={
-              <TouchableOpacity
-                onPress={() => setShowCreateContact((v) => !v)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-              >
-                <Ionicons name={showCreateContact ? 'chevron-up' : 'add-circle-outline'} size={20} color={Colors.accent} />
-                <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.accent }}>
-                  {showCreateContact ? 'Cancel' : 'New'}
-                </Text>
-              </TouchableOpacity>
-            }
-          />
-
-          {/* Inline Create New Contact form */}
+          <ModalHeader title="Assign Contact" onBack={() => setContactModal(false)} right={
+            <TouchableOpacity onPress={() => setShowCreateContact((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name={showCreateContact ? 'chevron-up' : 'add-circle-outline'} size={20} color={Colors.accent} />
+              <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.accent }}>{showCreateContact ? 'Cancel' : 'New'}</Text>
+            </TouchableOpacity>
+          } />
           {showCreateContact && (
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
               <View style={styles.createContactForm}>
                 <Text style={styles.createContactTitle}>New Contact</Text>
-                <TextInput
-                  style={styles.createContactInput}
-                  value={newContactName}
-                  onChangeText={setNewContactName}
-                  placeholder="Full name *"
-                  placeholderTextColor={Colors.textMuted}
-                  autoFocus
-                />
+                <TextInput style={styles.createContactInput} value={newContactName} onChangeText={setNewContactName} placeholder="Full name *" placeholderTextColor={Colors.textMuted} autoFocus />
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                  <TextInput
-                    style={[styles.createContactInput, { flex: 1, marginTop: 0 }]}
-                    value={newContactPhone}
-                    onChangeText={setNewContactPhone}
-                    placeholder="Phone"
-                    placeholderTextColor={Colors.textMuted}
-                    keyboardType="phone-pad"
-                  />
-                  <TextInput
-                    style={[styles.createContactInput, { flex: 1, marginTop: 0 }]}
-                    value={newContactCity}
-                    onChangeText={setNewContactCity}
-                    placeholder="City"
-                    placeholderTextColor={Colors.textMuted}
-                  />
+                  <TextInput style={[styles.createContactInput, { flex: 1, marginTop: 0 }]} value={newContactPhone} onChangeText={setNewContactPhone} placeholder="Phone" placeholderTextColor={Colors.textMuted} keyboardType="phone-pad" />
+                  <TextInput style={[styles.createContactInput, { flex: 1, marginTop: 0 }]} value={newContactCity} onChangeText={setNewContactCity} placeholder="City" placeholderTextColor={Colors.textMuted} />
                 </View>
-                <TouchableOpacity
-                  style={styles.createContactBtn}
-                  onPress={handleCreateAndAssign}
-                  disabled={creatingContact}
-                  activeOpacity={0.8}
-                >
-                  {creatingContact
-                    ? <ActivityIndicator color={Colors.primary} />
-                    : <Text style={styles.createContactBtnText}>Create &amp; Assign</Text>
-                  }
+                <TouchableOpacity style={styles.createContactBtn} onPress={handleCreateAndAssign} disabled={creatingContact} activeOpacity={0.8}>
+                  {creatingContact ? <ActivityIndicator color={Colors.primary} /> : <Text style={styles.createContactBtnText}>Create &amp; Assign</Text>}
                 </TouchableOpacity>
               </View>
             </KeyboardAvoidingView>
           )}
-
           {!showCreateContact && (
             <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
               <View style={styles.searchWrap}>
                 <Ionicons name="search-outline" size={16} color={Colors.textMuted} style={{ marginRight: 8 }} />
-                <TextInput
-                  style={styles.searchInput}
-                  value={dealerSearch}
-                  onChangeText={setDealerSearch}
-                  placeholder="Search contacts…"
-                  placeholderTextColor={Colors.textMuted}
-                />
+                <TextInput style={styles.searchInput} value={dealerSearch} onChangeText={setDealerSearch} placeholder="Search contacts…" placeholderTextColor={Colors.textMuted} />
               </View>
             </View>
           )}
-
           {!showCreateContact && (
             <ScrollView keyboardShouldPersistTaps="handled">
-              {dealers
-                .filter((d) => !dealerSearch || d.name.toLowerCase().includes(dealerSearch.toLowerCase()))
-                .map((d) => {
-                  const linked = project?.dealers.some((pd) => pd.id === d.id);
-                  return (
-                    <TouchableOpacity
-                      key={d.id}
-                      style={[styles.dealerPickRow, linked && styles.dealerPickRowActive]}
-                      onPress={() => !linked && handleAddContact(d.id)}
-                      disabled={contactSaving || linked}
-                    >
-                      <View style={styles.dealerPickAvatar}>
-                        <Text style={styles.dealerPickInitials}>
-                          {d.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.dealerPickName}>{d.name}</Text>
-                        {d.city ? <Text style={styles.dealerPickMeta}>{d.city}</Text> : null}
-                      </View>
-                      {linked
-                        ? <Ionicons name="checkmark-circle" size={20} color={Colors.accent} />
-                        : <Ionicons name="add-circle-outline" size={20} color={Colors.textMuted} />
-                      }
-                    </TouchableOpacity>
-                  );
-                })}
-              {dealers.length === 0 && (
-                <Text style={[styles.empty, { paddingHorizontal: 16 }]}>No contacts yet. Tap <Text style={{ fontWeight: '700', color: Colors.accent }}>New</Text> to create one.</Text>
-              )}
+              {dealers.filter((d) => !dealerSearch || d.name.toLowerCase().includes(dealerSearch.toLowerCase())).map((d) => {
+                const linked = project?.dealers.some((pd) => pd.id === d.id);
+                return (
+                  <TouchableOpacity key={d.id} style={[styles.dealerPickRow, linked && styles.dealerPickRowActive]} onPress={() => !linked && handleAddContact(d.id)} disabled={contactSaving || linked}>
+                    <View style={styles.dealerPickAvatar}><Text style={styles.dealerPickInitials}>{d.name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')}</Text></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.dealerPickName}>{d.name}</Text>
+                      {d.city ? <Text style={styles.dealerPickMeta}>{d.city}</Text> : null}
+                    </View>
+                    {linked ? <Ionicons name="checkmark-circle" size={20} color={Colors.accent} /> : <Ionicons name="add-circle-outline" size={20} color={Colors.textMuted} />}
+                  </TouchableOpacity>
+                );
+              })}
+              {dealers.length === 0 && <Text style={[styles.empty, { paddingHorizontal: 16 }]}>No contacts yet. Tap <Text style={{ fontWeight: '700', color: Colors.accent }}>New</Text> to create one.</Text>}
               {contactSaving && <ActivityIndicator style={{ paddingVertical: 16 }} color={Colors.accent} />}
             </ScrollView>
           )}
@@ -934,20 +908,35 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerBtns: { flexDirection: 'row', gap: 8 },
-  editBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.accent,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  deleteBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.danger,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  editBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
+  deleteBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.danger, alignItems: 'center', justifyContent: 'center' },
+  // Tab bar
+  tabBar: { backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border, maxHeight: 48 },
+  tabBarContent: { paddingHorizontal: 12, gap: 4 },
+  tabItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent', gap: 5 },
+  tabItemActive: { borderBottomColor: Colors.accent },
+  tabLabel: { fontSize: 13, fontWeight: '600', color: Colors.textMuted },
+  tabLabelActive: { color: Colors.accent },
+  tabBadge: { backgroundColor: Colors.border, borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1 },
+  tabBadgeActive: { backgroundColor: Colors.accent + '20' },
+  tabBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.textMuted },
+  tabBadgeTextActive: { color: Colors.accent },
+  // Section label
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginTop: 4 },
+  // KPI
+  kpiRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  // Balance strip
+  balanceStrip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderRadius: 12, padding: 14, marginBottom: 12 },
+  balanceIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  balanceLabel: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  balanceSub: { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
+  balanceValue: { fontSize: 18, fontWeight: '800' },
+  // Hero
   heroCard: { backgroundColor: Colors.primary, borderRadius: 14, padding: 16, marginBottom: 12 },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
   heroTitle: { fontSize: 18, fontWeight: '800', color: Colors.white, flex: 1, marginRight: 8 },
   heroSub: { fontSize: 12, color: 'rgba(255,255,255,0.65)' },
+  // Meeting card
   meetingCard: { borderLeftWidth: 3, borderLeftColor: Colors.accent },
   meetingBannerRow: { flexDirection: 'row', alignItems: 'flex-start' },
   meetingBannerLabel: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -959,11 +948,13 @@ const styles = StyleSheet.create({
   meetingSetBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   meetingDoneBtn: {},
   meetingSetBtnText: { fontSize: 13, fontWeight: '600', color: Colors.accent },
+  // Location
   locRow: { paddingVertical: 10 },
   locBorder: { borderTopWidth: 1, borderTopColor: Colors.border },
   locName: { fontSize: 14, fontWeight: '700', color: Colors.text },
   locAddr: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   locContact: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  // Work
   workRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10 },
   workTitle: { fontSize: 14, fontWeight: '600', color: Colors.text },
   workDue: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
@@ -972,6 +963,14 @@ const styles = StyleSheet.create({
   statusChipActive: { backgroundColor: Colors.primary },
   statusChipText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
   statusChipTextActive: { color: Colors.white },
+  // Financial rows
+  finRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12 },
+  finTitle: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  finSub: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  finRight: { alignItems: 'flex-end', gap: 6 },
+  finAmount: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  finActions: { flexDirection: 'row', gap: 12 },
+  // Meeting history
   historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
   historyDateBox: { alignItems: 'center', backgroundColor: Colors.primary + '12', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginRight: 12, minWidth: 50 },
   historyDay: { fontSize: 18, fontWeight: '800', color: Colors.primary },
@@ -984,94 +983,57 @@ const styles = StyleSheet.create({
   upcomingBadgeText: { fontSize: 9, fontWeight: '800', color: Colors.accent, letterSpacing: 0.5 },
   logBtn: { backgroundColor: Colors.accent + '18', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginLeft: 8 },
   logBtnText: { fontSize: 12, fontWeight: '700', color: Colors.accent },
+  // Common
   empty: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 12 },
-  modal: { flex: 1, backgroundColor: Colors.background },
-  modalHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.border, backgroundColor: Colors.white,
-  },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: Colors.text },
-  modalBody: { padding: 16 },
-  modalLabel: { fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 6, marginTop: 8 },
-  modalInput: {
-    borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10,
-    backgroundColor: Colors.white, paddingHorizontal: 12, height: 48, fontSize: 15, color: Colors.text,
-  },
-  modalInputMulti: { height: 100, paddingTop: 12, textAlignVertical: 'top' },
-  modalBtn: {
-    backgroundColor: Colors.accent, borderRadius: 12, height: 50,
-    alignItems: 'center', justifyContent: 'center', marginTop: 16,
-  },
-  modalBtnText: { fontSize: 16, fontWeight: '800', color: Colors.primary },
-  dtBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10,
-    backgroundColor: Colors.white, paddingHorizontal: 12, height: 48,
-  },
-  dtBtnText: { fontSize: 15, color: Colors.text },
-  iosInline: {
-    borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10,
-    backgroundColor: Colors.white, marginTop: 4, overflow: 'hidden',
-  },
-  iosInlineRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderTopWidth: 1, borderTopColor: Colors.border,
-  },
-  iosInlineBtn: { padding: 4 },
-  iosInlineCancel: { fontSize: 15, color: Colors.textSecondary },
-  iosInlineDone: { fontSize: 15, fontWeight: '700', color: Colors.accent },
-  // Contacts
-  contactRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  contactAvatar: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: Colors.info + '22', alignItems: 'center', justifyContent: 'center', marginRight: 12,
-  },
-  contactInitials: { fontSize: 15, fontWeight: '800', color: Colors.info },
-  contactName: { fontSize: 14, fontWeight: '700', color: Colors.text },
-  contactMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
-  addContactBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
-  addContactText: { fontSize: 14, color: Colors.accent, fontWeight: '600' },
   // Activity
   activityRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10, gap: 10 },
   activityDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
   activityDesc: { fontSize: 13, color: Colors.text, lineHeight: 18 },
   activityMeta: { fontSize: 11, color: Colors.textMuted, marginTop: 3 },
+  // Contacts
+  contactRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  contactAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.info + '22', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  contactInitials: { fontSize: 15, fontWeight: '800', color: Colors.info },
+  contactName: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  contactMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  addContactBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  addContactText: { fontSize: 14, color: Colors.accent, fontWeight: '600' },
+  // Modal
+  modal: { flex: 1, backgroundColor: Colors.background },
+  modalBody: { padding: 16 },
+  modalLabel: { fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 6, marginTop: 8 },
+  modalInput: { borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10, backgroundColor: Colors.white, paddingHorizontal: 12, height: 48, fontSize: 15, color: Colors.text },
+  modalInputMulti: { height: 100, paddingTop: 12, textAlignVertical: 'top' },
+  modalBtn: { backgroundColor: Colors.accent, borderRadius: 12, height: 50, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  modalBtnText: { fontSize: 16, fontWeight: '800', color: Colors.primary },
+  dtBtn: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10, backgroundColor: Colors.white, paddingHorizontal: 12, height: 48 },
+  dtBtnText: { fontSize: 15, color: Colors.text },
+  iosInline: { borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10, backgroundColor: Colors.white, marginTop: 4, overflow: 'hidden' },
+  iosInlineRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: Colors.border },
+  iosInlineBtn: { padding: 4 },
+  iosInlineCancel: { fontSize: 15, color: Colors.textSecondary },
+  iosInlineDone: { fontSize: 15, fontWeight: '700', color: Colors.accent },
   // Contact picker
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.background, borderRadius: 10,
-    borderWidth: 1.5, borderColor: Colors.border, paddingHorizontal: 12, height: 42,
-  },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, borderRadius: 10, borderWidth: 1.5, borderColor: Colors.border, paddingHorizontal: 12, height: 42 },
   searchInput: { flex: 1, fontSize: 14, color: Colors.text },
-  dealerPickRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: Colors.border,
-  },
+  dealerPickRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border },
   dealerPickRowActive: { backgroundColor: Colors.accent + '12' },
-  dealerPickAvatar: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: Colors.info + '22', alignItems: 'center', justifyContent: 'center', marginRight: 12,
-  },
+  dealerPickAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.info + '22', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   dealerPickInitials: { fontSize: 14, fontWeight: '800', color: Colors.info },
   dealerPickName: { fontSize: 14, fontWeight: '600', color: Colors.text },
   dealerPickMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
-  createContactForm: {
-    margin: 16, padding: 16, backgroundColor: Colors.white,
-    borderRadius: 14, borderWidth: 1.5, borderColor: Colors.accent + '40',
-  },
+  createContactForm: { margin: 16, padding: 16, backgroundColor: Colors.white, borderRadius: 14, borderWidth: 1.5, borderColor: Colors.accent + '40' },
   createContactTitle: { fontSize: 15, fontWeight: '700', color: Colors.text, marginBottom: 12 },
-  createContactInput: {
-    borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10,
-    backgroundColor: Colors.background, paddingHorizontal: 12, height: 46,
-    fontSize: 15, color: Colors.text, marginTop: 8,
-  },
-  createContactBtn: {
-    backgroundColor: Colors.accent, borderRadius: 10, height: 46,
-    alignItems: 'center', justifyContent: 'center', marginTop: 12,
-  },
+  createContactInput: { borderWidth: 1.5, borderColor: Colors.border, borderRadius: 10, backgroundColor: Colors.background, paddingHorizontal: 12, height: 46, fontSize: 15, color: Colors.text, marginTop: 8 },
+  createContactBtn: { backgroundColor: Colors.accent, borderRadius: 10, height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
   createContactBtnText: { fontSize: 15, fontWeight: '800', color: Colors.primary },
+});
+
+const kpi = StyleSheet.create({
+  card: { flex: 1, borderLeftWidth: 3, borderRadius: 10, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconWrap: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  label: { fontSize: 11, fontWeight: '600', color: Colors.textSecondary },
+  value: { fontSize: 14, fontWeight: '800', marginTop: 2 },
 });
 
 const dl = StyleSheet.create({

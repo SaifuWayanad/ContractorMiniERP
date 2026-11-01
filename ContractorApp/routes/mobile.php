@@ -12,6 +12,8 @@ use App\Http\Controllers\Mobile\MobileExpenseController;
 use App\Http\Controllers\Mobile\MobileProductController;
 use App\Http\Controllers\Mobile\MobileProjectPaymentController;
 use App\Http\Controllers\Mobile\MobilePurchaseController;
+use App\Http\Controllers\Mobile\MobileReportController;
+use App\Http\Controllers\Mobile\MobileVisitController;
 use App\Http\Controllers\Mobile\MobileWorkTypeController;
 use App\Http\Controllers\Mobile\MobileProfileController;
 use App\Http\Controllers\Mobile\MobileProjectController;
@@ -93,6 +95,15 @@ Route::prefix('mobile')->group(function (): void {
         Route::post('payments', [MobileProjectPaymentController::class, 'store']);
         Route::put('payments/{payment}', [MobileProjectPaymentController::class, 'update']);
         Route::delete('payments/{payment}', [MobileProjectPaymentController::class, 'destroy']);
+
+        // Visits
+        Route::get('visits', [MobileVisitController::class, 'index']);
+        Route::post('visits', [MobileVisitController::class, 'store']);
+        Route::put('visits/{visit}', [MobileVisitController::class, 'update']);
+        Route::delete('visits/{visit}', [MobileVisitController::class, 'destroy']);
+
+        // Reports
+        Route::get('reports/outstanding', [MobileReportController::class, 'outstanding']);
 
         // Meetings (upcoming)
         Route::get('meetings', [MobileProjectController::class, 'meetings']);

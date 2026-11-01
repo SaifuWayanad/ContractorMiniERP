@@ -15,18 +15,20 @@ class MobileProjectPaymentController extends Controller
         $projectId = $request->integer('project_id') ?: null;
 
         $payments = ProjectPayment::query()
+            ->with(['project:id,name'])
             ->when($projectId, fn ($q, $id) => $q->where('project_id', $id))
             ->orderByDesc('payment_date')
             ->latest()
             ->get()
             ->map(fn (ProjectPayment $p) => [
-                'id'               => $p->id,
-                'project_id'       => $p->project_id,
-                'payment_date'     => $p->payment_date?->toDateString(),
-                'amount_received'  => (float) $p->amount_received,
-                'payment_method'   => $p->payment_method,
-                'receipt_reference'=> $p->receipt_reference,
-                'notes'            => $p->notes,
+                'id'                => $p->id,
+                'project_id'        => $p->project_id,
+                'project_name'      => $p->project?->name,
+                'payment_date'      => $p->payment_date?->toDateString(),
+                'amount_received'   => (float) $p->amount_received,
+                'payment_method'    => $p->payment_method,
+                'receipt_reference' => $p->receipt_reference,
+                'notes'             => $p->notes,
             ]);
 
         return response()->json($payments);
