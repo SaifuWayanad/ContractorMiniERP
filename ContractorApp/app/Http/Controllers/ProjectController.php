@@ -6,7 +6,10 @@ use App\Enums\ProjectStatus;
 use App\Http\Requests\ProjectRequest;
 use App\Models\ActivityLog;
 use App\Models\Client;
+use App\Models\Product;
 use App\Models\Project;
+use App\Models\Purchase;
+use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -90,13 +93,22 @@ class ProjectController extends Controller
 
         $project->load(['client', 'locations' => fn ($query) => $query->orderBy('id')]);
 
-        $purchases = $project->purchases()->with('product:id,name,unit')->orderByDesc('purchase_date')->get();
+        $purchases = Purchase::where(function (Builder $q) use ($project): void {
+            $q->where('project_id', $project->id)
+              ->orWhereHas('items', fn (Builder $q2) => $q2->where('project_id', $project->id));
+        })->with(['product:id,name,unit', 'items.product:id,name,unit'])
+          ->orderByDesc('purchase_date')->orderByDesc('id')->get();
         $expenses  = $project->expenses()->orderByDesc('expense_date')->get();
         $payments  = $project->payments()->orderByDesc('payment_date')->get();
         $works     = $project->works()->with('assignee:id,name')->orderByRaw('due_date is null')->orderBy('due_date')->get();
 
         $financials = [
-            'purchases_total' => (float) $purchases->sum('line_total'),
+            'purchases_total' => (float) $purchases->sum(function (Purchase $p) use ($project): float {
+                if ($p->items->isEmpty()) {
+                    return (float) $p->line_total;
+                }
+                return (float) $p->items->where('project_id', $project->id)->sum('line_total');
+            }),
             'works_total'     => (float) $works->sum('amount'),
             'expenses_total'  => (float) $expenses->sum('amount') + (float) $works->sum('amount'),
             'payments_total'  => (float) $payments->sum('amount_received'),
@@ -119,14 +131,225 @@ class ProjectController extends Controller
                 ->where(function (Builder $query) use ($project): void {
                     $query->where(fn (Builder $q) => $q->where('entity_type', 'project')->where('entity_id', $project->id))
                         ->orWhere(fn (Builder $q) => $q->where('entity_type', 'project_location')->whereIn('entity_id', $project->locations()->withTrashed()->select('id')))
-                        ->orWhere(fn (Builder $q) => $q->where('entity_type', 'work')->whereIn('entity_id', $project->works()->withTrashed()->select('id')));
+                        ->orWhere(fn (Builder $q) => $q->where('entity_type', 'work')->whereIn('entity_id', $project->works()->withTrashed()->select('id')))
+                        ->orWhere(fn (Builder $q) => $q->where('entity_type', 'purchase')->whereIn('entity_id', $project->purchases()->withTrashed()->select('id')))
+                        ->orWhere(fn (Builder $q) => $q->where('entity_type', 'expense')->whereIn('entity_id', $project->expenses()->withTrashed()->select('id')))
+                        ->orWhere(fn (Builder $q) => $q->where('entity_type', 'project_payment')->whereIn('entity_id', $project->payments()->withTrashed()->select('id')));
                 })
                 ->with('user:id,name')
                 ->latest()
                 ->orderByDesc('id')
-                ->limit(12)
+                ->limit(20)
                 ->get(),
         ]);
+    }
+
+    public function addPurchases(Project $project): View
+    {
+        $this->authorize('view', $project);
+        $this->authorize('create', Purchase::class);
+
+        $products = Product::orderBy('name')
+            ->get(['id', 'name', 'unit', 'default_rate'])
+            ->map(fn ($p) => [
+                'id'   => $p->id,
+                'name' => $p->name,
+                'unit' => $p->unit ?? '',
+                'rate' => (float) ($p->default_rate ?? 0),
+            ]);
+
+        return view('projects.purchases-add', [
+            'project'  => $project,
+            'products' => $products,
+        ]);
+    }
+
+    public function storePurchases(Request $request, Project $project): RedirectResponse
+    {
+        $this->authorize('view', $project);
+        $this->authorize('create', Purchase::class);
+
+        $contractorId = $request->user()->contractor_id;
+
+        $validated = $request->validate([
+            'purchase_date'          => ['required', 'date'],
+            'items'                  => ['required', 'array', 'min:1'],
+            'items.*.product_id'     => ['nullable', 'integer', Rule::exists('products', 'id')->where('contractor_id', $contractorId)->whereNull('deleted_at')],
+            'items.*.quantity'       => ['nullable', 'numeric', 'min:0'],
+            'items.*.unit_amount'    => ['nullable', 'numeric', 'min:0'],
+            'items.*.line_total'     => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $validItems = [];
+        $batchTotal = 0.0;
+
+        foreach ($validated['items'] as $item) {
+            $qty       = isset($item['quantity']) && $item['quantity'] > 0 ? (float) $item['quantity'] : null;
+            $rate      = isset($item['unit_amount']) && $item['unit_amount'] > 0 ? (float) $item['unit_amount'] : null;
+            $lineTotal = isset($item['line_total']) && $item['line_total'] > 0 ? (float) $item['line_total'] : null;
+
+            if (!$lineTotal && !($qty && $rate)) {
+                continue;
+            }
+
+            $resolved = $lineTotal ?? round($qty * $rate, 2);
+            $batchTotal += $resolved;
+            $validItems[] = [
+                'product_id'  => $item['product_id'] ?? null,
+                'quantity'    => $qty,
+                'unit_amount' => $rate,
+                'line_total'  => $resolved,
+            ];
+        }
+
+        if (empty($validItems)) {
+            return back()->withInput()->with('toast', 'No purchases saved — please add at least one item with a total.');
+        }
+
+        $purchase = Purchase::create([
+            'project_id'    => $project->id,
+            'purchase_date' => $validated['purchase_date'],
+            'line_total'    => $batchTotal,
+            'total_amount'  => $batchTotal,
+        ]);
+
+        foreach ($validItems as $item) {
+            $purchase->items()->create([
+                'project_id'  => $project->id,
+                'product_id'  => $item['product_id'],
+                'quantity'    => $item['quantity'],
+                'unit_amount' => $item['unit_amount'],
+                'line_total'  => $item['line_total'],
+            ]);
+        }
+
+        $count = count($validItems);
+        return to_route('projects.show', $project)
+            ->with('toast', "{$count} item" . ($count !== 1 ? 's' : '') . ' recorded.');
+    }
+
+    public function editPurchase(Project $project, Purchase $purchase): View
+    {
+        $this->authorize('view', $project);
+        $this->authorize('update', $purchase);
+
+        $purchase->load(['items.product:id,name,unit', 'items.project:id,name,project_number', 'product:id,name,unit']);
+
+        $products = Product::orderBy('name')
+            ->get(['id', 'name', 'unit', 'default_rate'])
+            ->map(fn ($p) => [
+                'id'   => $p->id,
+                'name' => $p->name,
+                'unit' => $p->unit ?? '',
+                'rate' => (float) ($p->default_rate ?? 0),
+            ]);
+
+        $isBatch        = $purchase->items->isNotEmpty();
+        $isMultiProject = $purchase->project_id === null;
+
+        $existingItems = $isBatch
+            ? $purchase->items->map(fn ($i) => [
+                'project_id'    => $i->project_id,
+                'project_label' => $i->project ? ($i->project->name . ($i->project->project_number ? ' (' . $i->project->project_number . ')' : '')) : null,
+                'product_id'    => $i->product_id,
+                'product_label' => $i->product ? ($i->product->name . ($i->product->unit ? ' (' . $i->product->unit . ')' : '')) : null,
+                'quantity'      => $i->quantity !== null ? rtrim(rtrim(number_format((float) $i->quantity, 4, '.', ''), '0'), '.') : null,
+                'unit_amount'   => $i->unit_amount !== null ? number_format((float) $i->unit_amount, 2, '.', '') : null,
+                'line_total'    => number_format((float) $i->line_total, 2, '.', ''),
+            ])
+            : collect([[
+                'project_id'    => $project->id,
+                'project_label' => $project->name . ' (' . $project->project_number . ')',
+                'product_id'    => $purchase->product_id,
+                'product_label' => $purchase->product ? ($purchase->product->name . ($purchase->product->unit ? ' (' . $purchase->product->unit . ')' : '')) : null,
+                'quantity'      => $purchase->quantity !== null ? rtrim(rtrim(number_format((float) $purchase->quantity, 4, '.', ''), '0'), '.') : null,
+                'unit_amount'   => $purchase->unit_amount !== null ? number_format((float) $purchase->unit_amount, 2, '.', '') : null,
+                'line_total'    => number_format((float) $purchase->line_total, 2, '.', ''),
+            ]]);
+
+        $projectsJson = $isMultiProject
+            ? Project::orderBy('name')->get(['id', 'name', 'project_number'])->map(fn ($p) => [
+                'id'     => $p->id,
+                'name'   => $p->name,
+                'number' => $p->project_number,
+            ])
+            : collect();
+
+        return view('projects.purchases-edit', [
+            'project'        => $project,
+            'purchase'       => $purchase,
+            'products'       => $products,
+            'existingItems'  => $existingItems,
+            'isMultiProject' => $isMultiProject,
+            'projectsJson'   => $projectsJson,
+        ]);
+    }
+
+    public function updatePurchase(Request $request, Project $project, Purchase $purchase): RedirectResponse
+    {
+        $this->authorize('view', $project);
+        $this->authorize('update', $purchase);
+
+        $contractorId = $request->user()->contractor_id;
+
+        $validated = $request->validate([
+            'purchase_date'          => ['required', 'date'],
+            'items'                  => ['required', 'array', 'min:1'],
+            'items.*.project_id'     => ['nullable', 'integer', Rule::exists('projects', 'id')->whereNull('deleted_at')],
+            'items.*.product_id'     => ['nullable', 'integer', Rule::exists('products', 'id')->where('contractor_id', $contractorId)->whereNull('deleted_at')],
+            'items.*.quantity'       => ['nullable', 'numeric', 'min:0'],
+            'items.*.unit_amount'    => ['nullable', 'numeric', 'min:0'],
+            'items.*.line_total'     => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $validItems = [];
+        $batchTotal = 0.0;
+
+        foreach ($validated['items'] as $item) {
+            $qty       = isset($item['quantity']) && $item['quantity'] > 0 ? (float) $item['quantity'] : null;
+            $rate      = isset($item['unit_amount']) && $item['unit_amount'] > 0 ? (float) $item['unit_amount'] : null;
+            $lineTotal = isset($item['line_total']) && $item['line_total'] > 0 ? (float) $item['line_total'] : null;
+
+            if (!$lineTotal && !($qty && $rate)) continue;
+
+            $resolved    = $lineTotal ?? round($qty * $rate, 2);
+            $batchTotal += $resolved;
+            $validItems[] = [
+                'project_id'  => isset($item['project_id']) && $item['project_id'] ? (int) $item['project_id'] : $project->id,
+                'product_id'  => $item['product_id'] ?? null,
+                'quantity'    => $qty,
+                'unit_amount' => $rate,
+                'line_total'  => $resolved,
+            ];
+        }
+
+        if (empty($validItems)) {
+            return back()->withInput()->with('toast', 'No items — add at least one product with a total.');
+        }
+
+        $projectIds   = array_unique(array_column($validItems, 'project_id'));
+        $newProjectId = count($projectIds) === 1 ? $projectIds[0] : null;
+
+        $purchase->update([
+            'project_id'    => $newProjectId,
+            'purchase_date' => $validated['purchase_date'],
+            'product_id'    => null,
+            'quantity'      => null,
+            'unit_amount'   => null,
+            'line_total'    => $batchTotal,
+            'total_amount'  => $batchTotal,
+        ]);
+
+        $purchase->items()->delete();
+        foreach ($validItems as $item) {
+            $purchase->items()->create($item);
+        }
+
+        $redirect = $request->input('from') === 'purchases'
+            ? to_route('purchases.index')
+            : to_route('projects.show', $project);
+
+        return $redirect->with('toast', 'Purchase updated.');
     }
 
     public function edit(Project $project): View

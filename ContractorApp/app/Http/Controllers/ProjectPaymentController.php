@@ -4,13 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ProjectPaymentRequest;
 use App\Models\Client;
-use App\Models\Expense;
 use App\Models\Project;
 use App\Models\ProjectPayment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class ProjectPaymentController extends Controller
@@ -73,7 +71,7 @@ class ProjectPaymentController extends Controller
             ? to_route('projects.show', $payment->project_id)
             : to_route('payments.index');
 
-        return $redirect->with('toast', 'Payment recorded.');
+        return $redirect->with('toast', 'Collection recorded.');
     }
 
     public function edit(ProjectPayment $payment): View
@@ -93,7 +91,7 @@ class ProjectPaymentController extends Controller
             ? to_route('projects.show', $payment->project_id)
             : to_route('payments.index');
 
-        return $redirect->with('toast', 'Payment updated.');
+        return $redirect->with('toast', 'Collection updated.');
     }
 
     public function destroy(ProjectPayment $payment): RedirectResponse
@@ -103,27 +101,18 @@ class ProjectPaymentController extends Controller
         $projectId = $payment->project_id;
         $payment->delete();
 
-        return to_route('projects.show', $projectId)->with('toast', 'Payment deleted.');
+        return to_route('projects.show', $projectId)->with('toast', 'Collection deleted.');
     }
 
     /** @return array<string, mixed> */
     private function formData(ProjectPayment $payment): array
     {
         return [
-            'payment'        => $payment,
-            'projects'       => Project::query()
+            'payment'  => $payment,
+            'projects' => Project::query()
                 ->where(fn (Builder $q) => $q->open()->orWhere('id', $payment->project_id))
                 ->orderBy('name')->pluck('name', 'id'),
-            'paymentMethods' => $this->paymentMethods(),
         ];
     }
 
-    private function paymentMethods(): Collection
-    {
-        $defaults = collect(['Bank Transfer', 'Card', 'Cash', 'Cheque', 'UPI']);
-        $fromExpenses = Expense::whereNotNull('payment_method')->distinct()->pluck('payment_method');
-        $fromPayments = ProjectPayment::whereNotNull('payment_method')->distinct()->pluck('payment_method');
-
-        return $defaults->merge($fromExpenses)->merge($fromPayments)->unique()->sort()->values();
-    }
 }

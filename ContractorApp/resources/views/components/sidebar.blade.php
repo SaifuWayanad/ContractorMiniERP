@@ -42,11 +42,12 @@
             'FINANCE' => [
                 ['Purchases', 'bi-cart3', 'purchases.index', 'purchases.*', 'purchases.view'],
                 ['Expenses', 'bi-receipt', 'expenses.index', 'expenses.*', 'expenses.view'],
-                ['Payments', 'bi-cash-coin', 'payments.index', 'payments.*', 'payments.view'],
+                ['Collections', 'bi-cash-coin', 'payments.index', 'payments.*', 'payments.view'],
             ],
             'REPORTS' => [
                 ['Project-wise', 'bi-bar-chart-line', 'reports.outstanding', 'reports.outstanding', 'reports.view'],
                 ['Customer-wise', 'bi-people', 'reports.customer-outstanding', 'reports.customer-outstanding', 'reports.view'],
+                ['Collections', 'bi-cash-stack', 'reports.collections', 'reports.collections', 'reports.view'],
             ],
         ];
 @endphp

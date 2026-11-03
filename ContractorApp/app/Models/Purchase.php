@@ -7,9 +7,10 @@ use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['project_id', 'product_id', 'purchase_date', 'quantity', 'unit_amount', 'line_total', 'supplier', 'invoice_reference', 'notes'])]
+#[Fillable(['project_id', 'product_id', 'purchase_date', 'quantity', 'unit_amount', 'line_total', 'total_amount', 'supplier', 'invoice_reference', 'notes'])]
 class Purchase extends Model
 {
     use BelongsToContractor, LogsActivity, SoftDeletes;
@@ -21,13 +22,14 @@ class Purchase extends Model
             'quantity'      => 'decimal:4',
             'unit_amount'   => 'decimal:2',
             'line_total'    => 'decimal:2',
+            'total_amount'  => 'decimal:2',
         ];
     }
 
     protected static function booted(): void
     {
         static::saving(function (Purchase $purchase): void {
-            // If line_total explicitly provided (and qty/rate are null), keep it; otherwise auto-compute
+            // Only auto-compute line_total for single-item purchases (no items relation)
             if ($purchase->quantity !== null && $purchase->unit_amount !== null) {
                 $purchase->line_total = round((float) $purchase->quantity * (float) $purchase->unit_amount, 2);
             } elseif ($purchase->line_total === null) {
@@ -46,6 +48,12 @@ class Purchase extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class)->withTrashed();
+    }
+
+    /** @return HasMany<PurchaseItem, $this> */
+    public function items(): HasMany
+    {
+        return $this->hasMany(PurchaseItem::class);
     }
 
     public function activityLabel(): string

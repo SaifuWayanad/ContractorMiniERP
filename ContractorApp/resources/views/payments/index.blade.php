@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Payments Received')
+@section('title', 'Collections')
 
 @section('content')
-<x-page-header title="Payments received" subtitle="Client payments received across all projects.">
+<x-page-header title="Collections" subtitle="Collections received from clients across all projects.">
     <x-slot:actions>
         @can('create', App\Models\ProjectPayment::class)
-            <a href="{{ route('payments.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Record Payment</a>
+            <a href="{{ route('payments.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Record Collection</a>
         @endcan
     </x-slot:actions>
 </x-page-header>
@@ -63,9 +63,9 @@
 
 @if ($payments->isEmpty())
     <div class="card">
-        <x-empty-state icon="bi-cash-coin" title="No payments yet" message="Record payments received from clients against projects.">
+        <x-empty-state icon="bi-cash-coin" title="No collections yet" message="Record collections received from clients against projects.">
             @can('create', App\Models\ProjectPayment::class)
-                <a href="{{ route('payments.create') }}" class="btn btn-primary btn-sm">Record Payment</a>
+                <a href="{{ route('payments.create') }}" class="btn btn-primary btn-sm">Record Collection</a>
             @endcan
         </x-empty-state>
     </div>
@@ -77,7 +77,6 @@
                     <th>Project</th>
                     <th class="d-none d-sm-table-cell">Date</th>
                     <th class="d-none d-md-table-cell">Method</th>
-                    <th class="d-none d-lg-table-cell">Reference</th>
                     <th class="text-end fw-semibold">Amount</th>
                     <th class="text-end"><span class="visually-hidden">Actions</span></th>
                 </tr>
@@ -90,7 +89,6 @@
                         </td>
                         <td class="d-none d-sm-table-cell text-nowrap">{{ $payment->payment_date?->format('d M Y') }}</td>
                         <td class="d-none d-md-table-cell">{{ $payment->payment_method ?? '—' }}</td>
-                        <td class="d-none d-lg-table-cell">{{ $payment->receipt_reference ?? '—' }}</td>
                         <td class="text-end fw-semibold text-success">₹{{ number_format((float)$payment->amount_received, 2) }}</td>
                         <td class="text-end">
                             <div class="dropdown">
@@ -101,7 +99,7 @@
                                     @endcan
                                     @can('delete', $payment)
                                         <li><hr class="dropdown-divider" /></li>
-                                        <li><x-delete-button :action="route('payments.destroy', $payment)" class="dropdown-item text-danger" title="Delete payment?" confirm="Delete this payment record? This cannot be undone." /></li>
+                                        <li><x-delete-button :action="route('payments.destroy', $payment)" class="dropdown-item text-danger" title="Delete collection?" confirm="Delete this collection record? This cannot be undone." /></li>
                                     @endcan
                                 </ul>
                             </div>

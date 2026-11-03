@@ -81,6 +81,7 @@ Route::prefix('mobile')->group(function (): void {
         // Purchases
         Route::get('purchases', [MobilePurchaseController::class, 'index']);
         Route::post('purchases', [MobilePurchaseController::class, 'store']);
+        Route::post('purchases/batch', [MobilePurchaseController::class, 'storeBatch']);
         Route::put('purchases/{purchase}', [MobilePurchaseController::class, 'update']);
         Route::delete('purchases/{purchase}', [MobilePurchaseController::class, 'destroy']);
 
@@ -103,7 +104,8 @@ Route::prefix('mobile')->group(function (): void {
         Route::delete('visits/{visit}', [MobileVisitController::class, 'destroy']);
 
         // Reports
-        Route::get('reports/outstanding', [MobileReportController::class, 'outstanding']);
+        Route::get('reports/outstanding',  [MobileReportController::class, 'outstanding']);
+        Route::get('reports/collections',  [MobileReportController::class, 'collections']);
 
         // Meetings (upcoming)
         Route::get('meetings', [MobileProjectController::class, 'meetings']);

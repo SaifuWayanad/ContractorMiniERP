@@ -1,13 +1,18 @@
-{{-- Shared payment form. Expects $payment, $projects, $paymentMethods. --}}
+{{-- Shared collection form. Expects $payment, $projects. --}}
 @if(isset($from))
     <input type="hidden" name="from" value="{{ $from }}" />
 @endif
 
-@php $pmtWrapperId = 'paymentMethodWrapper'; @endphp
+@php
+    $pmtWrapperId  = 'paymentMethodWrapper';
+    $fixedMethods  = ['Cash', 'Bank Transfer', 'UPI', 'Cheque', 'Credit Card'];
+    $currentMethod = old('payment_method', $payment->payment_method);
+    $extraMethod   = $currentMethod && !in_array($currentMethod, $fixedMethods) ? $currentMethod : null;
+@endphp
 
 <div class="card form-card">
     <div class="card-body">
-        <x-form.section title="Payment Details" :first="true">
+        <x-form.section title="Collection Details" :first="true">
             <x-form.select name="project_id" label="Project" :options="$projects" :value="$payment->project_id" placeholder="Select project" :required="true" />
             <x-form.input name="payment_date" label="Date" type="date" :value="$payment->payment_date?->format('Y-m-d') ?? today()->format('Y-m-d')" :required="true" col="col-md-4" />
             <x-form.input name="amount_received" label="Amount Received (₹)" type="number" step="0.01" min="0" :value="$payment->amount_received" :required="true" col="col-md-4" />
@@ -23,9 +28,12 @@
                     <div class="cs-panel">
                         <div class="cs-search-wrap"><i class="bi bi-search"></i><input type="text" class="cs-search" placeholder="Search..."></div>
                         <div class="cs-list">
-                            @foreach($paymentMethods as $pm)
+                            @foreach($fixedMethods as $pm)
                                 <div class="cs-item" data-value="{{ $pm }}">{{ $pm }}</div>
                             @endforeach
+                            @if($extraMethod)
+                                <div class="cs-item" data-value="{{ $extraMethod }}">{{ $extraMethod }}</div>
+                            @endif
                         </div>
                         <div class="cs-footer">
                             <button type="button" class="cs-add-btn" id="pmtAddBtn">
@@ -33,7 +41,7 @@
                             </button>
                         </div>
                     </div>
-                    <input type="hidden" name="payment_method" id="pmtHiddenInput" value="{{ old('payment_method', $payment->payment_method) }}">
+                    <input type="hidden" name="payment_method" id="pmtHiddenInput" value="{{ $currentMethod }}">
                 </div>
                 @error('payment_method')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
             </div>
@@ -54,7 +62,7 @@
             </div>
             <div class="modal-body">
                 <label for="pmtModalInput" class="form-label">Name <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="pmtModalInput" maxlength="100" autocomplete="off" placeholder="e.g. Bank Transfer, UPI…" />
+                <input type="text" class="form-control" id="pmtModalInput" maxlength="100" autocomplete="off" placeholder="e.g. NEFT, PayPal…" />
                 <div class="invalid-feedback" id="pmtModalError"></div>
             </div>
             <div class="modal-footer">
@@ -70,8 +78,12 @@
 (function () {
     var pmtCs    = new CustomSelect('{{ $pmtWrapperId }}');
     var pmtInput = document.getElementById('pmtHiddenInput');
-    var origPmtSel = pmtCs._select.bind(pmtCs);
-    pmtCs._select = function(v, l) { origPmtSel(v, l); if (pmtInput) pmtInput.value = v; };
+    var origSel  = pmtCs._select.bind(pmtCs);
+    pmtCs._select = function (v, l) { origSel(v, l); if (pmtInput) pmtInput.value = v; };
+
+    // Pre-select saved value
+    var saved = pmtInput ? pmtInput.value : '';
+    if (saved) pmtCs._select(saved, saved);
 
     var pmtModal      = bootstrap.Modal.getOrCreateInstance(document.getElementById('pmtAddMethodModal'));
     var pmtModalInput = document.getElementById('pmtModalInput');
@@ -87,19 +99,25 @@
 
     document.getElementById('pmtAddMethodModal').addEventListener('hidden.bs.modal', function () {
         pmtModalInput.value = '';
-        pmtModalInput.classList.remove('is-invalid'); pmtModalError.textContent = '';
+        pmtModalInput.classList.remove('is-invalid');
+        pmtModalError.textContent = '';
     });
 
     pmtModalSave.addEventListener('click', function () {
-        pmtModalInput.classList.remove('is-invalid'); pmtModalError.textContent = '';
+        pmtModalInput.classList.remove('is-invalid');
+        pmtModalError.textContent = '';
         var name = pmtModalInput.value.trim();
-        if (!name) { pmtModalInput.classList.add('is-invalid'); pmtModalError.textContent = 'Name is required.'; return; }
+        if (!name) {
+            pmtModalInput.classList.add('is-invalid');
+            pmtModalError.textContent = 'Name is required.';
+            return;
+        }
         pmtCs.addOption(name, name, true);
         pmtModal.hide();
     });
 
     pmtModalInput.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') { e.preventDefault(); pmtModalSave.click(); }
+        if (e.key === 'Enter')  { e.preventDefault(); pmtModalSave.click(); }
         if (e.key === 'Escape') { pmtModal.hide(); }
     });
 })();

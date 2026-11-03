@@ -74,35 +74,41 @@
         <table class="table table-hover align-middle">
             <thead>
                 <tr>
-                    <th>Product / Supplier</th>
+                    <th>Invoice No.</th>
                     <th class="d-none d-md-table-cell">Project</th>
                     <th class="d-none d-sm-table-cell">Date</th>
-                    <th class="text-end">Qty</th>
-                    <th class="text-end">Unit Rate</th>
                     <th class="text-end fw-semibold">Total</th>
                     <th class="text-end"><span class="visually-hidden">Actions</span></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($purchases as $purchase)
+                    @php
+                        $isBatch      = $purchase->items->isNotEmpty();
+                        $displayTotal = (float) ($purchase->total_amount ?? $purchase->line_total);
+                    @endphp
                     <tr>
-                        <td>
-                            <span class="row-title">{{ $purchase->product?->name ?? 'Unknown product' }}</span>
-                            @if ($purchase->supplier)
-                                <div class="cell-sub">{{ $purchase->supplier }}</div>
+                        <td class="text-muted">{{ $purchase->invoice_reference ?? '—' }}</td>
+                        <td class="d-none d-md-table-cell">
+                            @if($purchase->project)
+                                {{ $purchase->project->name }}
+                            @elseif($purchase->items->isNotEmpty())
+                                {{ $purchase->items->pluck('project.name')->filter()->unique()->join(', ') }}
+                            @else
+                                —
                             @endif
                         </td>
-                        <td class="d-none d-md-table-cell">{{ $purchase->project?->name ?? '—' }}</td>
                         <td class="d-none d-sm-table-cell text-nowrap">{{ $purchase->purchase_date?->format('d M Y') }}</td>
-                        <td class="text-end">{{ number_format((float)$purchase->quantity, 2) }}</td>
-                        <td class="text-end">₹{{ number_format((float)$purchase->unit_amount, 2) }}</td>
-                        <td class="text-end fw-semibold">₹{{ number_format((float)$purchase->line_total, 2) }}</td>
+                        <td class="text-end fw-semibold">₹{{ number_format($displayTotal, 2) }}</td>
                         <td class="text-end">
                             <div class="dropdown">
                                 <button class="btn btn-icon btn-sm" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions"><i class="bi bi-three-dots-vertical"></i></button>
                                 <ul class="dropdown-menu dropdown-menu-end">
+                                    @can('view', $purchase)
+                                        <li><a class="dropdown-item" href="{{ route('purchases.show', $purchase) }}"><i class="bi bi-eye me-2"></i>View</a></li>
+                                    @endcan
                                     @can('update', $purchase)
-                                        <li><a class="dropdown-item" href="{{ route('purchases.edit', $purchase) }}"><i class="bi bi-pencil me-2"></i>Edit</a></li>
+                                        <li><a class="dropdown-item" href="{{ route('purchases.editBatch', $purchase) }}"><i class="bi bi-pencil me-2"></i>Edit</a></li>
                                     @endcan
                                     @can('delete', $purchase)
                                         <li><hr class="dropdown-divider" /></li>

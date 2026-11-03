@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Payment')
+@section('title', 'Edit Collection')
 
 @section('content')
-<x-page-header title="Edit payment" subtitle="Fields marked * are required.">
+<x-page-header title="Edit collection" subtitle="Fields marked * are required.">
     <x-slot:breadcrumbs>
         <li class="breadcrumb-item"><a href="{{ route('projects.show', $payment->project_id) }}">Project</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('payments.index') }}">Payments</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('payments.index') }}">Collections</a></li>
         <li class="breadcrumb-item active" aria-current="page">Edit</li>
     </x-slot:breadcrumbs>
 </x-page-header>

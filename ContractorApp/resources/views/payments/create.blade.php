@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Record Payment')
+@section('title', 'Record Collection')
 
 @section('content')
-<x-page-header title="Record payment" subtitle="Fields marked * are required.">
+<x-page-header title="Record collection" subtitle="Fields marked * are required.">
     <x-slot:breadcrumbs>
         @if(request('from') === 'project' && request('project_id'))
             <li class="breadcrumb-item"><a href="{{ route('projects.show', request('project_id')) }}">Project</a></li>
         @else
-            <li class="breadcrumb-item"><a href="{{ route('payments.index') }}">Payments</a></li>
+            <li class="breadcrumb-item"><a href="{{ route('payments.index') }}">Collections</a></li>
         @endif
         <li class="breadcrumb-item active" aria-current="page">New</li>
     </x-slot:breadcrumbs>
@@ -27,7 +27,7 @@
         @csrf
         @php($from = request('from'))
         @include('payments.form')
-        <x-form.actions :cancel="request('from') === 'project' && request('project_id') ? route('projects.show', request('project_id')) : route('payments.index')" submit="Record Payment" />
+        <x-form.actions :cancel="request('from') === 'project' && request('project_id') ? route('projects.show', request('project_id')) : route('payments.index')" submit="Record Collection" />
     </form>
 @endif
 @endsection

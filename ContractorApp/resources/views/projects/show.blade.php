@@ -83,7 +83,7 @@
     @can('viewAny', App\Models\ProjectPayment::class)
     <li class="nav-item" role="presentation">
         <a class="nav-link" data-bs-toggle="tab" href="#payments" role="tab">
-            Payments <span class="badge bg-secondary ms-1">{{ $payments->count() }}</span>
+            Collections <span class="badge bg-secondary ms-1">{{ $payments->count() }}</span>
         </a>
     </li>
     @endcan
@@ -299,9 +299,9 @@
     @can('viewAny', App\Models\Purchase::class)
     <div class="tab-pane fade" id="purchases" role="tabpanel">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">Purchases — Total: <strong>₹{{ number_format($financials['purchases_total'], 2) }}</strong></h6>
+            <h6 class="mb-0">Product List — Total: <strong>₹{{ number_format($financials['purchases_total'], 2) }}</strong></h6>
             @can('create', App\Models\Purchase::class)
-                <a href="{{ route('purchases.create', ['project_id' => $project->id, 'from' => 'project']) }}" class="btn btn-sm btn-primary">
+                <a href="{{ route('projects.add-purchases', $project) }}" class="btn btn-sm btn-primary">
                     <i class="bi bi-plus-circle me-1"></i>Add Purchase
                 </a>
             @endcan
@@ -312,27 +312,59 @@
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead><tr>
-                        <th>Date</th>
-                        <th>Product</th>
+                        <th>Product(s)</th>
                         <th class="text-end d-none d-md-table-cell">Qty</th>
-                        <th class="text-end d-none d-md-table-cell">Unit Rate</th>
+                        <th class="text-end d-none d-md-table-cell">Unit Price</th>
                         <th class="text-end fw-semibold">Total</th>
                         <th class="text-center"></th>
                     </tr></thead>
                     <tbody>
                         @foreach ($purchases as $purchase)
+                        @php
+                            $isBatch      = $purchase->items->isNotEmpty();
+                            $myItems      = $isBatch ? $purchase->items->where('project_id', $project->id) : collect();
+                            $productLabel = $isBatch
+                                ? ($myItems->isNotEmpty()
+                                    ? $myItems->map(fn($i) => $i->product?->name ?? 'Unknown')->join(', ')
+                                    : $purchase->items->map(fn($i) => $i->product?->name ?? 'Unknown')->join(', '))
+                                : ($purchase->product?->name ?? '—');
+                            $displayTotal = $isBatch
+                                ? (float) $myItems->sum('line_total')
+                                : (float) $purchase->line_total;
+                            $itemCount    = $myItems->count();
+                        @endphp
                         <tr>
-                            <td class="text-nowrap">{{ $purchase->purchase_date?->format('d M Y') ?? '—' }}</td>
                             <td>
-                                {{ $purchase->product?->name ?? '—' }}
-                                @if ($purchase->supplier)<div class="cell-sub">{{ $purchase->supplier }}</div>@endif
+                                {{ $productLabel }}
+                                <div class="cell-sub">
+                                    {{ $purchase->purchase_date?->format('d M Y') }}
+                                    @if(!$isBatch && $purchase->supplier) · {{ $purchase->supplier }} @endif
+                                    @if($isBatch) · {{ $itemCount }} item{{ $itemCount !== 1 ? 's' : '' }} @endif
+                                </div>
                             </td>
-                            <td class="text-end d-none d-md-table-cell">{{ number_format((float)$purchase->quantity, 2) }} {{ $purchase->product?->unit }}</td>
-                            <td class="text-end d-none d-md-table-cell">₹{{ number_format((float)$purchase->unit_amount, 2) }}</td>
-                            <td class="text-end fw-semibold">₹{{ number_format((float)$purchase->line_total, 2) }}</td>
-                            <td class="text-center">
+                            <td class="text-end d-none d-md-table-cell text-muted">
+                                @if($isBatch) — @else
+                                    {{ $purchase->quantity !== null ? rtrim(rtrim(number_format((float)$purchase->quantity, 4), '0'), '.') . ' ' . ($purchase->product?->unit ?? '') : '—' }}
+                                @endif
+                            </td>
+                            <td class="text-end d-none d-md-table-cell text-muted">
+                                @if($isBatch) — @else
+                                    {{ $purchase->unit_amount !== null ? '₹'.number_format((float)$purchase->unit_amount, 2) : '—' }}
+                                @endif
+                            </td>
+                            <td class="text-end fw-semibold">₹{{ number_format($displayTotal, 2) }}</td>
+                            <td class="text-center text-nowrap">
+                                @can('view', $purchase)
+                                    <a href="{{ route('purchases.show', $purchase) }}?project_id={{ $project->id }}" class="btn-action" title="View"><i class="bi bi-eye"></i></a>
+                                @endcan
                                 @can('update', $purchase)
-                                    <a href="{{ route('purchases.edit', [$purchase, 'from' => 'project']) }}" class="btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                                    <a href="{{ route('projects.edit-purchase', [$project, $purchase]) }}" class="btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                                @endcan
+                                @can('delete', $purchase)
+                                    <form method="post" action="{{ route('purchases.destroy', $purchase) }}" class="d-inline" onsubmit="return confirm('Delete this purchase?')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn-action text-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                                    </form>
                                 @endcan
                             </td>
                         </tr>
@@ -408,10 +440,10 @@
     @can('viewAny', App\Models\ProjectPayment::class)
     <div class="tab-pane fade" id="payments" role="tabpanel">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">Payments Received — Total: <strong class="text-success">₹{{ number_format($financials['payments_total'], 2) }}</strong></h6>
+            <h6 class="mb-0">Collections — Total: <strong class="text-success">₹{{ number_format($financials['payments_total'], 2) }}</strong></h6>
             @can('create', App\Models\ProjectPayment::class)
                 <a href="{{ route('payments.create', ['project_id' => $project->id, 'from' => 'project']) }}" class="btn btn-sm btn-primary">
-                    <i class="bi bi-plus-circle me-1"></i>Add Payment
+                    <i class="bi bi-plus-circle me-1"></i>Record Collection
                 </a>
             @endcan
         </div>
@@ -423,7 +455,6 @@
                     <thead><tr>
                         <th>Date</th>
                         <th class="d-none d-md-table-cell">Method</th>
-                        <th class="d-none d-lg-table-cell">Reference</th>
                         <th class="text-end fw-semibold text-success">Amount</th>
                         <th class="text-center"></th>
                     </tr></thead>
@@ -432,7 +463,6 @@
                         <tr>
                             <td class="text-nowrap">{{ $payment->payment_date?->format('d M Y') ?? '—' }}</td>
                             <td class="d-none d-md-table-cell">{{ $payment->payment_method ?? '—' }}</td>
-                            <td class="d-none d-lg-table-cell">{{ $payment->receipt_reference ?? '—' }}</td>
                             <td class="text-end fw-semibold text-success">₹{{ number_format((float)$payment->amount_received, 2) }}</td>
                             <td class="text-center">
                                 @can('update', $payment)
@@ -526,14 +556,13 @@
 @push('scripts')
 <script>
 (function () {
-    /* Log meeting toggle */
+    /* ── Log meeting toggle ── */
     var toggleLog = document.getElementById('toggleLogMeeting');
     if (toggleLog) {
         var logWrap = document.getElementById('logMeetingFormWrap');
         var cancelLog = document.getElementById('cancelLogMeeting');
         @if ($errors->has('meeting_at') || $errors->has('purpose'))
         if (logWrap) logWrap.style.display = '';
-        // Switch to meetings tab if validation error
         var meetingsTab = document.querySelector('[href="#meetings"]');
         if (meetingsTab) new bootstrap.Tab(meetingsTab).show();
         @endif
@@ -542,6 +571,7 @@
         });
         if (cancelLog) cancelLog.addEventListener('click', function () { logWrap.style.display = 'none'; });
     }
+
 
 })();
 </script>

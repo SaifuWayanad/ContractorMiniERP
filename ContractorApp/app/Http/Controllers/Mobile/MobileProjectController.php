@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Project;
 use App\Models\ProjectMeeting;
+use App\Models\PurchaseItem;
 use App\Services\MeetingDigestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,14 +85,22 @@ class MobileProjectController extends Controller
 
     public function show(Project $project): JsonResponse
     {
-        foreach (['client', 'locations', 'works.assignee:id,name', 'meetings.createdBy:id,name', 'purchases.product:id,name,unit', 'expenses', 'payments'] as $rel) {
+        foreach (['client', 'locations', 'works.assignee:id,name', 'meetings.createdBy:id,name', 'purchases.product:id,name,unit', 'purchases.items.product:id,name,unit', 'expenses', 'payments'] as $rel) {
             try {
                 $project->load($rel);
             } catch (\Throwable) {
             }
         }
 
-        $purchasesTotal = $project->purchases->sum('line_total');
+        // Purchase items that belong to this project from multi-project purchases
+        $sharedItems = PurchaseItem::query()
+            ->with(['product:id,name,unit', 'purchase:id,purchase_date,invoice_reference'])
+            ->where('project_id', $project->id)
+            ->whereHas('purchase', fn ($q) => $q->whereNull('project_id'))
+            ->get();
+
+        $purchasesTotal = $project->purchases->sum(fn ($p) => (float) ($p->total_amount ?? $p->line_total))
+            + $sharedItems->sum(fn ($i) => (float) $i->line_total);
         $expensesTotal  = $project->expenses->sum('amount');
         $paymentsTotal  = $project->payments->sum('amount_received');
         $budget         = (float) ($project->budget ?? 0);
@@ -145,12 +154,38 @@ class MobileProjectController extends Controller
                 'product_name'      => $p->product?->name,
                 'product_unit'      => $p->product?->unit,
                 'purchase_date'     => $p->purchase_date?->toDateString(),
-                'quantity'          => (float) $p->quantity,
-                'unit_amount'       => (float) $p->unit_amount,
+                'quantity'          => $p->quantity !== null ? (float) $p->quantity : null,
+                'unit_amount'       => $p->unit_amount !== null ? (float) $p->unit_amount : null,
                 'line_total'        => (float) $p->line_total,
+                'total_amount'      => $p->total_amount !== null ? (float) $p->total_amount : null,
                 'supplier'          => $p->supplier,
                 'invoice_reference' => $p->invoice_reference,
                 'notes'             => $p->notes,
+                'items'             => ($p->relationLoaded('items') ? $p->items : collect())->map(fn ($i) => [
+                    'id'           => $i->id,
+                    'project_id'   => $i->project_id,
+                    'product_id'   => $i->product_id,
+                    'product_name' => $i->product?->name,
+                    'product_unit' => $i->product?->unit ?? $i->unit,
+                    'supplier'     => $i->supplier,
+                    'unit'         => $i->unit,
+                    'quantity'     => (float) $i->quantity,
+                    'unit_amount'  => (float) $i->unit_amount,
+                    'line_total'   => (float) $i->line_total,
+                ]),
+            ]),
+            'shared_purchase_items' => $sharedItems->map(fn ($i) => [
+                'id'                => $i->id,
+                'purchase_id'       => $i->purchase_id,
+                'purchase_date'     => $i->purchase?->purchase_date?->toDateString(),
+                'invoice_reference' => $i->purchase?->invoice_reference,
+                'product_name'      => $i->product?->name,
+                'product_unit'      => $i->product?->unit ?? $i->unit,
+                'supplier'          => $i->supplier,
+                'unit'              => $i->unit,
+                'quantity'          => (float) $i->quantity,
+                'unit_amount'       => (float) $i->unit_amount,
+                'line_total'        => (float) $i->line_total,
             ]),
             'expenses' => ($project->relationLoaded('expenses') ? $project->expenses : collect())->map(fn ($e) => [
                 'id'               => $e->id,

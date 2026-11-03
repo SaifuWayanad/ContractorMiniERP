@@ -110,6 +110,105 @@ class ReportController extends Controller
         ]);
     }
 
+    public function collections(Request $request): View
+    {
+        $this->authorize('viewAny', ProjectPayment::class);
+
+        $period       = $request->string('period')->trim()->value() ?: 'all_time';
+        $projectId    = $request->integer('project_id') ?: null;
+        $clientId     = $request->integer('client_id') ?: null;
+        $methodFilter = $request->string('payment_method')->trim()->value() ?: null;
+
+        [$dateFrom, $dateTo] = match ($period) {
+            'today'      => [today()->toDateString(), today()->toDateString()],
+            'this_week'  => [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()],
+            'this_month' => [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()],
+            'last_month' => [now()->subMonthNoOverflow()->startOfMonth()->toDateString(), now()->subMonthNoOverflow()->endOfMonth()->toDateString()],
+            'this_year'  => [now()->startOfYear()->toDateString(), now()->endOfYear()->toDateString()],
+            'all_time'   => [null, null],
+            'custom'     => [
+                $request->string('date_from')->trim()->value() ?: null,
+                $request->string('date_to')->trim()->value() ?: null,
+            ],
+            default      => [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()],
+        };
+
+        $payments = ProjectPayment::query()
+            ->with(['project:id,name,project_number,client_id', 'project.client:id,name'])
+            ->when($dateFrom, fn ($q) => $q->whereDate('payment_date', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->whereDate('payment_date', '<=', $dateTo))
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            ->when($clientId, fn ($q) => $q->whereHas('project', fn ($p) => $p->where('client_id', $clientId)))
+            ->when($methodFilter, fn ($q) => $q->where('payment_method', $methodFilter))
+            ->orderByDesc('payment_date')
+            ->orderByDesc('id')
+            ->get();
+
+        // Distinct methods across filtered results
+        $methods = $payments->pluck('payment_method')
+            ->map(fn ($m) => $m ?? 'Other')
+            ->unique()->sort()->values();
+
+        // Grand totals per method
+        $methodGrandTotals = $methods->mapWithKeys(fn ($m) => [
+            $m => (float) $payments->filter(fn ($p) => ($p->payment_method ?? 'Other') === $m)->sum('amount_received'),
+        ]);
+
+        // Build Customer → Project → Transactions hierarchy
+        $byClient = $payments->groupBy(fn ($p) => $p->project?->client_id ?? 0);
+
+        $customerRows = $byClient->map(function ($clientPayments, $clientId) use ($methods) {
+            $client = $clientPayments->first()->project?->client;
+
+            $customerMethods = $methods->mapWithKeys(fn ($m) => [
+                $m => (float) $clientPayments->filter(fn ($p) => ($p->payment_method ?? 'Other') === $m)->sum('amount_received'),
+            ]);
+
+            $byProject = $clientPayments->groupBy('project_id');
+            $projectRows = $byProject->map(function ($projectPayments, $pid) use ($methods) {
+                $project = $projectPayments->first()->project;
+
+                $projectMethods = $methods->mapWithKeys(fn ($m) => [
+                    $m => (float) $projectPayments->filter(fn ($p) => ($p->payment_method ?? 'Other') === $m)->sum('amount_received'),
+                ]);
+
+                return [
+                    'project_id'     => $pid,
+                    'project_name'   => $project?->name ?? 'Unknown',
+                    'project_number' => $project?->project_number,
+                    'methods'        => $projectMethods,
+                    'total'          => (float) $projectPayments->sum('amount_received'),
+                    'transactions'   => $projectPayments->values(),
+                ];
+            })->values()->sortBy('project_name')->values();
+
+            return [
+                'client_id'   => $clientId,
+                'client_name' => $client?->name ?? 'Unknown',
+                'methods'     => $customerMethods,
+                'total'       => (float) $clientPayments->sum('amount_received'),
+                'projects'    => $projectRows,
+            ];
+        })->values()->sortBy('client_name')->values();
+
+        return view('reports.collections', [
+            'payments'          => $payments,
+            'customerRows'      => $customerRows,
+            'methods'           => $methods,
+            'methodGrandTotals' => $methodGrandTotals,
+            'grandTotal'        => (float) $payments->sum('amount_received'),
+            'period'            => $period,
+            'dateFrom'          => $dateFrom,
+            'dateTo'            => $dateTo,
+            'projectId'         => $projectId,
+            'clientId'          => $clientId,
+            'methodFilter'      => $methodFilter,
+            'clients'           => Client::orderBy('name')->pluck('name', 'id'),
+            'projects'          => Project::orderBy('name')->pluck('name', 'id'),
+            'allMethods'        => ProjectPayment::whereNotNull('payment_method')->distinct()->orderBy('payment_method')->pluck('payment_method'),
+        ]);
+    }
+
     public function customerOutstanding(Request $request): View
     {
         $this->authorize('viewAny', \App\Models\Project::class);

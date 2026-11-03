@@ -67,6 +67,10 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         Route::patch('projects/{project}/meeting', [ProjectController::class, 'updateMeeting'])->name('projects.meeting');
         Route::post('projects/{project}/meetings', [ProjectMeetingController::class, 'store'])->name('projects.meetings.store');
         Route::delete('projects/{project}/meetings/{meeting}', [ProjectMeetingController::class, 'destroy'])->name('projects.meetings.destroy');
+        Route::get('projects/{project}/purchases/add', [ProjectController::class, 'addPurchases'])->name('projects.add-purchases');
+        Route::post('projects/{project}/purchases/add', [ProjectController::class, 'storePurchases'])->name('projects.store-purchases');
+        Route::get('projects/{project}/purchases/{purchase}/edit', [ProjectController::class, 'editPurchase'])->name('projects.edit-purchase');
+        Route::put('projects/{project}/purchases/{purchase}', [ProjectController::class, 'updatePurchase'])->name('projects.update-purchase');
         Route::get('locations', [ProjectLocationController::class, 'index'])->name('locations.index');
         Route::get('locations/create', [ProjectLocationController::class, 'chooseProject'])->name('locations.create');
         Route::get('projects/{project}/locations', [ProjectLocationController::class, 'forProject'])->name('projects.locations.index');
@@ -77,12 +81,16 @@ Route::middleware(['auth', 'active'])->group(function (): void {
 
         Route::post('products/quick', [ProductController::class, 'quickStore'])->name('products.quick-store');
         Route::resource('products', ProductController::class)->except('show');
-        Route::resource('purchases', PurchaseController::class)->except('show');
+        Route::post('purchases/batch', [PurchaseController::class, 'storeBatch'])->name('purchases.storeBatch');
+        Route::get('purchases/{purchase}/edit-batch', [PurchaseController::class, 'editBatch'])->name('purchases.editBatch');
+        Route::put('purchases/{purchase}/update-batch', [PurchaseController::class, 'updateBatch'])->name('purchases.updateBatch');
+        Route::resource('purchases', PurchaseController::class);
         Route::resource('expenses', ExpenseController::class)->except('show');
         Route::resource('payments', ProjectPaymentController::class)->except('show');
 
         Route::get('reports/outstanding', [ReportController::class, 'outstanding'])->name('reports.outstanding');
         Route::get('reports/customer-outstanding', [ReportController::class, 'customerOutstanding'])->name('reports.customer-outstanding');
+        Route::get('reports/collections', [ReportController::class, 'collections'])->name('reports.collections');
 
         Route::resource('visits', VisitController::class)->except('show');
         Route::get('reports/customer-outstanding', [ReportController::class, 'customerOutstanding'])->name('reports.customer-outstanding');
