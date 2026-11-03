@@ -281,9 +281,21 @@ echo "    Upload-urls response: $CREDS"
 UP_URL="$(echo "$CREDS" | json_get "d['url']")"; UP_URL="${UP_URL%/}"
 AUTH="$(echo "$CREDS" | json_get "d['auth_key']")"
 RAUTH="$(echo "$CREDS" | json_get "d['rest_auth_key']")"
-# Extract server-side path if provided, fall back to home directory
-UP_PATH="$(echo "$CREDS" | python3 -I -c "import sys,json; d=json.load(sys.stdin); print(d.get('path', '/home/${HUSER}/').rstrip('/'))" 2>/dev/null || echo "/home/${HUSER}")"
-echo "    Files will be stored under: $UP_PATH"
+# Derive the server-side directory from the TUS URL path (the segment after /api/tus/)
+TUS_SUBDIR="$(python3 -I -c "
+import sys
+url = '$UP_URL'
+marker = '/api/tus/'
+idx = url.find(marker)
+print(url[idx+len(marker):].strip('/') if idx >= 0 else 'public_html')
+")"
+case "$TUS_SUBDIR" in
+  public_html) UP_PATH="/home/${HUSER}/domains/${DOMAIN}/public_html" ;;
+  "")          UP_PATH="/home/${HUSER}" ;;
+  /*)          UP_PATH="$TUS_SUBDIR" ;;
+  *)           UP_PATH="/home/${HUSER}/${TUS_SUBDIR}" ;;
+esac
+echo "    TUS subdir: $TUS_SUBDIR  →  server path: $UP_PATH"
 TUS=(--http1.1 --tlsv1.2 -sS -H "X-Auth: $AUTH" -H "X-Auth-Rest: $RAUTH" -H "Tus-Resumable: 1.0.0")
 CHUNK=$((1024 * 1024))
 for attempt in 1 2 3 4 5; do
@@ -331,17 +343,19 @@ api PATCH "/accounts/$HUSER/websites/$DOMAIN/php/version" '{"version":"8.4"}' >/
 echo "==> Deploying (this replaces everything in public_html)"
 ARCHIVE_PATH="${UP_PATH}/${ZIP_NAME}"
 echo "    Using archive_path: $ARCHIVE_PATH"
-# Try full path first, fall back to bare filename if rejected
+DEPLOYED=0
 for attempt in 1 2 3 4 5; do
-  if api POST "/accounts/$HUSER/websites/$DOMAIN/deploy" "{\"archive_path\":\"$ARCHIVE_PATH\"}" >/dev/null; then break; fi
-  # On second attempt also try bare filename in case API changed
-  if [ "$attempt" = 2 ]; then
-    echo "    Retrying with bare filename as archive_path..."
-    if api POST "/accounts/$HUSER/websites/$DOMAIN/deploy" "{\"archive_path\":\"$ZIP_NAME\"}" >/dev/null; then break; fi
+  if api POST "/accounts/$HUSER/websites/$DOMAIN/deploy" "{\"archive_path\":\"$ARCHIVE_PATH\"}" >/dev/null 2>&1; then DEPLOYED=1; break; fi
+  if [ "$attempt" = 1 ]; then
+    echo "    Retrying with bare filename..."
+    if api POST "/accounts/$HUSER/websites/$DOMAIN/deploy" "{\"archive_path\":\"$ZIP_NAME\"}" >/dev/null 2>&1; then DEPLOYED=1; break; fi
+    echo "    Retrying with home-dir path..."
+    if api POST "/accounts/$HUSER/websites/$DOMAIN/deploy" "{\"archive_path\":\"/home/${HUSER}/${ZIP_NAME}\"}" >/dev/null 2>&1; then DEPLOYED=1; break; fi
   fi
-  [ "$attempt" = 5 ] && { echo "Deploy call kept failing; the site was not changed." >&2; exit 1; }
+  [ "$attempt" = 5 ] && break
   echo "    deploy call failed, retrying in 60s ($attempt/5)"; sleep 60
 done
+[ "$DEPLOYED" = 1 ] || { echo "Deploy call kept failing; the site was not changed." >&2; exit 1; }
 
 echo "==> Running install tasks on the server via a one-off cron job"
 INSTALL_CMD="cd $APP_DIR && bash install.sh"
