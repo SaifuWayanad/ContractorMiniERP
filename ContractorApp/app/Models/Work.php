@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['title', 'description', 'priority', 'status', 'start_date', 'due_date', 'amount'])]
@@ -45,6 +47,18 @@ class Work extends Model
                 $work->completed_at = $work->status === WorkStatus::Completed ? now() : null;
             }
         });
+    }
+
+    /** @return HasMany<WorkPayment, $this> */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(WorkPayment::class);
+    }
+
+    /** @return BelongsToMany<Employee, $this> */
+    public function employees(): BelongsToMany
+    {
+        return $this->belongsToMany(Employee::class, 'work_employees');
     }
 
     /**

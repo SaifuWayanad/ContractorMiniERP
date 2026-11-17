@@ -15,10 +15,23 @@ import { ModalHeader } from '@/components/ui/ModalHeader';
 import { Colors } from '@/constants/Colors';
 import api from '@/services/api';
 
+type PurchaseItemDetail = {
+  id: number; project_id: number | null; product_name: string | null; product_unit: string | null;
+  supplier: string | null; unit: string | null;
+  quantity: number; unit_amount: number; line_total: number;
+};
+type SharedPurchaseItem = {
+  id: number; purchase_id: number; purchase_date: string | null; invoice_reference: string | null;
+  product_name: string | null; product_unit: string | null;
+  supplier: string | null; unit: string | null;
+  quantity: number; unit_amount: number; line_total: number;
+};
 type Purchase = {
   id: number; product_name: string | null; product_unit: string | null;
-  purchase_date: string | null; quantity: number; unit_amount: number;
-  line_total: number; supplier: string | null; invoice_reference: string | null; notes: string | null;
+  purchase_date: string | null; quantity: number | null; unit_amount: number | null;
+  line_total: number; total_amount: number | null;
+  supplier: string | null; invoice_reference: string | null; notes: string | null;
+  items: PurchaseItemDetail[];
 };
 type Expense = {
   id: number; heading: string; category: string | null;
@@ -44,6 +57,7 @@ type ProjectDetail = {
   works: Array<{ id: number; title: string; status: string; priority: string; due_date: string | null; amount: number | null }>;
   meetings: Array<{ id: number; meeting_at: string; purpose: string; created_by: string | null }>;
   purchases: Purchase[];
+  shared_purchase_items: SharedPurchaseItem[];
   expenses: Expense[];
   payments: Payment[];
   financials: Financials;
@@ -59,7 +73,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'works', label: 'Works' },
   { key: 'purchases', label: 'Purchases' },
   { key: 'expenses', label: 'Expenses' },
-  { key: 'payments', label: 'Payments' },
+  { key: 'payments', label: 'Collections' },
   { key: 'meetings', label: 'Meetings' },
 ];
 
@@ -244,7 +258,8 @@ export default function ProjectDetailScreen() {
         locations: Array.isArray(d.locations) ? d.locations : [],
         works:     Array.isArray(d.works)     ? d.works     : [],
         meetings:  Array.isArray(d.meetings)  ? d.meetings  : [],
-        purchases: Array.isArray(d.purchases) ? d.purchases : [],
+        purchases: Array.isArray(d.purchases) ? d.purchases.map((p: Purchase) => ({ ...p, items: Array.isArray(p.items) ? p.items : [] })) : [],
+        shared_purchase_items: Array.isArray(d.shared_purchase_items) ? d.shared_purchase_items : [],
         expenses:  Array.isArray(d.expenses)  ? d.expenses  : [],
         payments:  Array.isArray(d.payments)  ? d.payments  : [],
         financials: d.financials ?? { budget: 0, purchases_total: 0, expenses_total: 0, payments_total: 0, outstanding: 0 },
@@ -383,7 +398,7 @@ export default function ProjectDetailScreen() {
   }
 
   async function handleDeletePayment(paymentId: number) {
-    Alert.alert('Delete Payment', 'Delete this payment record?', [
+    Alert.alert('Delete Collection', 'Delete this collection record?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try { await api.delete(`/mobile/payments/${paymentId}`); load(); }
@@ -419,7 +434,7 @@ export default function ProjectDetailScreen() {
   const tabCounts: Record<Tab, number> = {
     overview: 0,
     works: project.works.length,
-    purchases: project.purchases.length,
+    purchases: project.purchases.length + project.shared_purchase_items.length,
     expenses: project.expenses.length,
     payments: project.payments.length,
     meetings: project.meetings.length + (project.next_meeting_at ? 1 : 0),
@@ -649,34 +664,94 @@ export default function ProjectDetailScreen() {
           <Card
             title={`Purchases — ${fmtINR(fin.purchases_total)}`}
             titleRight={
-              <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/purchases/form' as any, params: { projectId: String(project.id) } })}>
+              <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/purchases/project-form' as any, params: { projectId: String(project.id) } })}>
                 <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
               </TouchableOpacity>
             }
           >
-            {project.purchases.length === 0 ? (
+            {project.purchases.length === 0 && project.shared_purchase_items.length === 0 ? (
               <Text style={styles.empty}>No purchases yet. Tap + to add.</Text>
             ) : (
-              project.purchases.map((p, i) => (
-                <View key={p.id} style={[styles.finRow, i > 0 && styles.locBorder]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.finTitle}>{p.product_name ?? 'Unknown product'}</Text>
-                    {p.supplier && <Text style={styles.finSub}>{p.supplier}</Text>}
-                    <Text style={styles.finSub}>{fmt(p.purchase_date) ?? '—'} · {p.quantity} {p.product_unit ?? ''} × {fmtINR(p.unit_amount)}</Text>
-                  </View>
-                  <View style={styles.finRight}>
-                    <Text style={styles.finAmount}>{fmtINR(p.line_total)}</Text>
-                    <View style={styles.finActions}>
-                      <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/purchases/form' as any, params: { id: String(p.id), projectId: String(project.id) } })} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <Ionicons name="pencil-outline" size={16} color={Colors.textSecondary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeletePurchase(p.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-                      </TouchableOpacity>
+              <>
+                {project.purchases.map((p, i) => {
+                  const isMultiItem = p.items && p.items.length > 0;
+                  const displayTotal = p.total_amount ?? p.line_total;
+                  return (
+                    <View key={p.id} style={[styles.finRow, i > 0 && styles.locBorder]}>
+                      <View style={{ flex: 1 }}>
+                        {isMultiItem ? (
+                          <>
+                            <Text style={styles.finTitle}>
+                              {p.invoice_reference ? `Ref: ${p.invoice_reference}` : `Purchase #${p.id}`}
+                            </Text>
+                            <Text style={styles.finSub}>{fmt(p.purchase_date) ?? '—'} · {p.items.length} item{p.items.length !== 1 ? 's' : ''}</Text>
+                            {p.items.map((it) => (
+                              <Text key={it.id} style={styles.purchaseItemLine}>
+                                {'· '}{it.product_name ?? 'Product'}{it.product_unit ? ` (${it.product_unit})` : ''} — {it.quantity} × {fmtINR(it.unit_amount)} = {fmtINR(it.line_total)}
+                              </Text>
+                            ))}
+                          </>
+                        ) : (
+                          <>
+                            <Text style={styles.finTitle}>{p.product_name ?? 'Unknown product'}</Text>
+                            {p.supplier && <Text style={styles.finSub}>{p.supplier}</Text>}
+                            <Text style={styles.finSub}>
+                              {fmt(p.purchase_date) ?? '—'}{p.quantity != null ? ` · ${p.quantity} ${p.product_unit ?? ''} × ${fmtINR(p.unit_amount ?? 0)}` : ''}
+                            </Text>
+                          </>
+                        )}
+                      </View>
+                      <View style={styles.finRight}>
+                        <Text style={styles.finAmount}>{fmtINR(displayTotal)}</Text>
+                        {!isMultiItem && (
+                          <View style={styles.finActions}>
+                            <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/purchases/form' as any, params: { id: String(p.id), projectId: String(project.id) } })} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Ionicons name="pencil-outline" size={16} color={Colors.textSecondary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDeletePurchase(p.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                        {isMultiItem && (
+                          <View style={styles.finActions}>
+                            <TouchableOpacity onPress={() => handleDeletePurchase(p.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                              <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
                     </View>
-                  </View>
-                </View>
-              ))
+                  );
+                })}
+
+                {/* Items from multi-project purchases that include this project */}
+                {project.shared_purchase_items.length > 0 && (
+                  <>
+                    <View style={styles.sharedItemsHeader}>
+                      <Ionicons name="git-merge-outline" size={13} color={Colors.textSecondary} />
+                      <Text style={styles.sharedItemsLabel}>From multi-project purchases</Text>
+                    </View>
+                    {project.shared_purchase_items.map((it, i) => (
+                      <View key={it.id} style={[styles.finRow, styles.sharedItemRow, i > 0 && styles.locBorder]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.finTitle}>{it.product_name ?? 'Product'}{it.product_unit ? ` (${it.product_unit})` : ''}</Text>
+                          {it.supplier && <Text style={styles.finSub}>{it.supplier}</Text>}
+                          <Text style={styles.finSub}>
+                            {fmt(it.purchase_date) ?? '—'}{it.invoice_reference ? ` · Ref: ${it.invoice_reference}` : ''}
+                          </Text>
+                          <Text style={styles.purchaseItemLine}>
+                            {it.quantity} {it.unit ?? it.product_unit ?? ''} × {fmtINR(it.unit_amount)}
+                          </Text>
+                        </View>
+                        <View style={styles.finRight}>
+                          <Text style={styles.finAmount}>{fmtINR(it.line_total)}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
+              </>
             )}
           </Card>
         )}
@@ -721,7 +796,7 @@ export default function ProjectDetailScreen() {
         {/* ── PAYMENTS TAB ── */}
         {activeTab === 'payments' && (
           <Card
-            title={`Payments Received — ${fmtINR(fin.payments_total)}`}
+            title={`Collections — ${fmtINR(fin.payments_total)}`}
             titleRight={
               <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/payments/form' as any, params: { projectId: String(project.id) } })}>
                 <Ionicons name="add-circle-outline" size={22} color={Colors.accent} />
@@ -729,7 +804,7 @@ export default function ProjectDetailScreen() {
             }
           >
             {project.payments.length === 0 ? (
-              <Text style={styles.empty}>No payments yet. Tap + to add.</Text>
+              <Text style={styles.empty}>No collections yet. Tap + to add.</Text>
             ) : (
               project.payments.map((p, i) => (
                 <View key={p.id} style={[styles.finRow, i > 0 && styles.locBorder]}>
@@ -967,6 +1042,10 @@ const styles = StyleSheet.create({
   finRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12 },
   finTitle: { fontSize: 14, fontWeight: '600', color: Colors.text },
   finSub: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  purchaseItemLine: { fontSize: 11, color: Colors.textMuted, marginTop: 3, lineHeight: 16 },
+  sharedItemsHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingTop: 12, paddingBottom: 4, borderTopWidth: 1, borderTopColor: Colors.border, marginTop: 4 },
+  sharedItemsLabel: { fontSize: 10, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4 },
+  sharedItemRow: { backgroundColor: Colors.background + 'aa' },
   finRight: { alignItems: 'flex-end', gap: 6 },
   finAmount: { fontSize: 14, fontWeight: '700', color: Colors.text },
   finActions: { flexDirection: 'row', gap: 12 },

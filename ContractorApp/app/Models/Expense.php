@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['project_id', 'heading', 'category', 'expense_date', 'amount', 'payment_method', 'reference_number', 'notes'])]
+#[Fillable(['project_id', 'heading', 'category', 'is_work_related', 'expense_date', 'amount', 'payment_method', 'reference_number', 'notes'])]
 class Expense extends Model
 {
     use BelongsToContractor, LogsActivity, SoftDeletes;
@@ -17,8 +17,9 @@ class Expense extends Model
     protected function casts(): array
     {
         return [
-            'expense_date' => 'date',
-            'amount'       => 'decimal:2',
+            'expense_date'    => 'date',
+            'amount'          => 'decimal:2',
+            'is_work_related' => 'boolean',
         ];
     }
 

@@ -7,11 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1B2A4A"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.buildmate.app"
@@ -23,8 +18,7 @@
       },
       "package": "com.buildmate.app",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 2,
-      "usesCleartextTraffic": true
+      "versionCode": 2
     },
     "web": {
       "bundler": "metro",
@@ -42,7 +36,9 @@
           "imageWidth": 200
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "@react-native-community/datetimepicker",
+      "expo-status-bar"
     ],
     "updates": {
       "url": "https://u.expo.dev/d547f4fd-c429-4bdd-af0f-c4d5c3859e74"

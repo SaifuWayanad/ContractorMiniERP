@@ -46,7 +46,7 @@
 
 {{-- KPI cards --}}
 <div class="row g-3 mb-4">
-    <div class="col-sm-6 col-md-3">
+    <div class="col-6 col-md">
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted small mb-1">Purchase Date</div>
@@ -56,7 +56,7 @@
     </div>
 
     @if(!$isMultiProject)
-    <div class="col-sm-6 col-md-3">
+    <div class="col-6 col-md">
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted small mb-1">Project</div>
@@ -75,7 +75,7 @@
     @endif
 
     @if($purchase->supplier)
-    <div class="col-sm-6 col-md-3">
+    <div class="col-6 col-md">
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted small mb-1">Supplier</div>
@@ -86,7 +86,7 @@
     @endif
 
     @if($purchase->invoice_reference)
-    <div class="col-sm-6 col-md-3">
+    <div class="col-6 col-md">
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted small mb-1">Invoice Ref.</div>
@@ -96,7 +96,7 @@
     </div>
     @endif
 
-    <div class="col-sm-6 col-md-3">
+    <div class="col-6 col-md">
         <div class="card h-100 border-success">
             <div class="card-body">
                 <div class="text-muted small mb-1">Total Amount</div>

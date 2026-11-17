@@ -100,7 +100,7 @@ class ProjectController extends Controller
           ->orderByDesc('purchase_date')->orderByDesc('id')->get();
         $expenses  = $project->expenses()->orderByDesc('expense_date')->get();
         $payments  = $project->payments()->orderByDesc('payment_date')->get();
-        $works     = $project->works()->with('assignee:id,name')->orderByRaw('due_date is null')->orderBy('due_date')->get();
+        $works     = $project->works()->with(['assignee:id,name', 'payments'])->orderByRaw('due_date is null')->orderBy('due_date')->get();
 
         $financials = [
             'purchases_total' => (float) $purchases->sum(function (Purchase $p) use ($project): float {

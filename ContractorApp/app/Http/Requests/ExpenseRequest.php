@@ -13,6 +13,11 @@ class ExpenseRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['is_work_related' => $this->boolean('is_work_related')]);
+    }
+
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -24,6 +29,7 @@ class ExpenseRequest extends FormRequest
             'project_id'       => ['required', 'integer', Rule::exists('projects', 'id')->where('contractor_id', $contractorId)->whereNull('deleted_at')],
             'heading'          => ['required', 'string', 'max:200'],
             'category'         => ['nullable', 'string', 'max:200'],
+            'is_work_related'  => ['sometimes', 'boolean'],
             'expense_date'     => ['required', 'date'],
             'amount'           => ['required', 'numeric', 'min:0'],
             'payment_method'   => ['nullable', 'string', 'max:100'],

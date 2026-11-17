@@ -8,13 +8,17 @@ use App\Http\Controllers\Admin;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\EmployeeLoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SalaryPaymentController;
 use App\Http\Controllers\VisitController;
 use App\Http\Controllers\WorkTypeController;
 use App\Http\Controllers\ProfileController;
@@ -91,11 +95,20 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         Route::get('reports/outstanding', [ReportController::class, 'outstanding'])->name('reports.outstanding');
         Route::get('reports/customer-outstanding', [ReportController::class, 'customerOutstanding'])->name('reports.customer-outstanding');
         Route::get('reports/collections', [ReportController::class, 'collections'])->name('reports.collections');
+        Route::get('reports/expenses', [ReportController::class, 'expenses'])->name('reports.expenses');
+        Route::get('reports/employees', [ReportController::class, 'employees'])->name('reports.employees');
+
+        Route::resource('employees', EmployeeController::class);
+        Route::get('employees/{employee}/login/create', [EmployeeLoginController::class, 'create'])->name('employees.login.create');
+        Route::post('employees/{employee}/login', [EmployeeLoginController::class, 'store'])->name('employees.login.store');
+        Route::delete('employees/{employee}/login', [EmployeeLoginController::class, 'destroy'])->name('employees.login.destroy');
+        Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/mark', [AttendanceController::class, 'mark'])->name('attendance.mark');
+        Route::post('attendance/mark', [AttendanceController::class, 'saveMark'])->name('attendance.save-mark');
+        Route::delete('attendance/{attendance}', [AttendanceController::class, 'destroy'])->name('attendance.destroy');
+        Route::resource('salary-payments', SalaryPaymentController::class)->except('show');
 
         Route::resource('visits', VisitController::class)->except('show');
-        Route::get('reports/customer-outstanding', [ReportController::class, 'customerOutstanding'])->name('reports.customer-outstanding');
-
-        Route::resource('visits', \App\Http\Controllers\VisitController::class)->except('show');
 
         Route::get('work-types', [WorkTypeController::class, 'index'])->name('work-types.index');
         Route::post('work-types', [WorkTypeController::class, 'store'])->name('work-types.store');

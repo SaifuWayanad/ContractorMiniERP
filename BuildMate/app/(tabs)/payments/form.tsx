@@ -122,10 +122,10 @@ export default function PaymentFormScreen() {
 
       if (isEdit) {
         await api.put(`/mobile/payments/${id}`, body);
-        Alert.alert('Saved', 'Payment updated.', [{ text: 'OK', onPress: () => goBack() }]);
+        Alert.alert('Saved', 'Collection updated.', [{ text: 'OK', onPress: () => goBack() }]);
       } else {
         await api.post('/mobile/payments', body);
-        Alert.alert('Created', 'Payment recorded.', [{ text: 'OK', onPress: () => {
+        Alert.alert('Created', 'Collection recorded.', [{ text: 'OK', onPress: () => {
           if (projectId) router.replace(`/(tabs)/projects/${projectId}`);
           else router.replace('/(tabs)/payments' as any);
         }}]);
@@ -138,7 +138,7 @@ export default function PaymentFormScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['bottom']}>
-      <ScreenHeader title={isEdit ? 'Edit Payment' : 'Record Payment'} subtitle={isEdit ? 'Update payment details' : 'Log a client payment received'} right={<HeaderSaveButton onPress={handleSave} saving={saving} label={isEdit ? 'Update' : 'Save'} />} />
+      <ScreenHeader title={isEdit ? 'Edit Collection' : 'Record Collection'} subtitle={isEdit ? 'Update collection details' : 'Log a client collection received'} right={<HeaderSaveButton onPress={handleSave} saving={saving} label={isEdit ? 'Update' : 'Save'} />} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
           <SelectPicker label="Project" value={selProjectId} options={projects} onChange={setSelProjectId} placeholder="Select project…" searchable required />
@@ -154,7 +154,7 @@ export default function PaymentFormScreen() {
           <Field label="Receipt / Reference"><Input value={receiptRef} onChangeText={setReceiptRef} placeholder="e.g. RCP-2024-001" /></Field>
           <Field label="Notes"><Input value={notes} onChangeText={setNotes} placeholder="Any additional notes…" multiline numberOfLines={3} /></Field>
           <TouchableOpacity style={s.submitBtn} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
-            {saving ? <ActivityIndicator color={Colors.primary} /> : <Text style={s.submitBtnText}>{isEdit ? 'Update Payment' : 'Record Payment'}</Text>}
+            {saving ? <ActivityIndicator color={Colors.primary} /> : <Text style={s.submitBtnText}>{isEdit ? 'Update Collection' : 'Record Collection'}</Text>}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

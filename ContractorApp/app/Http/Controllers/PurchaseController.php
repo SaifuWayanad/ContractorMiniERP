@@ -28,8 +28,7 @@ class PurchaseController extends Controller
             'project_id' => $request->integer('project_id') ?: null,
         ];
 
-        $purchases = Purchase::query()
-            ->with(['project:id,name', 'product:id,name', 'items.product:id,name', 'items.project:id,name'])
+        $baseQuery = Purchase::query()
             ->where(fn (Builder $q) => $q->whereNotNull('project_id')->orWhereHas('items'))
             ->when($filters['client_id'], fn (Builder $q, int $cid) => $q->whereHas('project', fn (Builder $p) => $p->where('client_id', $cid)))
             ->when($filters['project_id'], fn (Builder $q, int $pid) => $q->where('project_id', $pid))
@@ -38,7 +37,12 @@ class PurchaseController extends Controller
                 $q->where('supplier', 'like', $like)
                     ->orWhere('invoice_reference', 'like', $like)
                     ->orWhereHas('product', fn (Builder $p) => $p->where('name', 'like', $like));
-            }))
+            }));
+
+        $totalValue = (float) (clone $baseQuery)->sum('line_total');
+
+        $purchases = $baseQuery
+            ->with(['project:id,name', 'product:id,name', 'items.product:id,name', 'items.project:id,name'])
             ->orderByDesc('purchase_date')
             ->orderByDesc('id')
             ->paginate($this->perPage())
@@ -50,10 +54,11 @@ class PurchaseController extends Controller
             : Project::orderBy('name')->pluck('name', 'id');
 
         return view('purchases.index', [
-            'purchases' => $purchases,
-            'filters'   => $filters,
-            'clients'   => $clients,
-            'projects'  => $projects,
+            'purchases'  => $purchases,
+            'totalValue' => $totalValue,
+            'filters'    => $filters,
+            'clients'    => $clients,
+            'projects'   => $projects,
         ]);
     }
 

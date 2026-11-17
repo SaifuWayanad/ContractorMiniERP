@@ -10,11 +10,18 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Colors } from '@/constants/Colors';
 import api from '@/services/api';
 
+type PurchaseItemDetail = {
+  id: number; project_id: number | null; project_name: string | null; project_number: string | null;
+  product_name: string | null; product_unit: string | null; unit: string | null;
+  supplier: string | null; quantity: number; unit_amount: number; line_total: number;
+};
 type Purchase = {
-  id: number; project_id: number; project_name: string | null;
+  id: number; project_id: number | null; project_name: string | null; project_number: string | null;
   product_name: string | null; product_unit: string | null;
-  purchase_date: string | null; quantity: number; unit_amount: number;
-  line_total: number; supplier: string | null; invoice_reference: string | null;
+  purchase_date: string | null; quantity: number | null; unit_amount: number | null;
+  line_total: number; total_amount: number | null;
+  supplier: string | null; invoice_reference: string | null;
+  items: PurchaseItemDetail[];
 };
 
 function fmtDate(iso: string | null): string {
@@ -48,12 +55,19 @@ export default function PurchasesScreen() {
   const filtered = purchases.filter((p) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
+    const inItems = (p.items ?? []).some(
+      (it) => (it.product_name ?? '').toLowerCase().includes(q) ||
+               (it.project_name ?? '').toLowerCase().includes(q) ||
+               (it.supplier ?? '').toLowerCase().includes(q)
+    );
     return (p.product_name ?? '').toLowerCase().includes(q) ||
       (p.project_name ?? '').toLowerCase().includes(q) ||
-      (p.supplier ?? '').toLowerCase().includes(q);
+      (p.supplier ?? '').toLowerCase().includes(q) ||
+      (p.invoice_reference ?? '').toLowerCase().includes(q) ||
+      inItems;
   });
 
-  const total = filtered.reduce((sum, p) => sum + p.line_total, 0);
+  const total = filtered.reduce((sum, p) => sum + (p.total_amount ?? p.line_total), 0);
 
   async function handleDelete(id: number) {
     Alert.alert('Delete Purchase', 'Delete this purchase record?', [
@@ -92,23 +106,57 @@ export default function PurchasesScreen() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={filtered.length === 0 ? { flex: 1 } : s.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.accent} />}
-        ListEmptyComponent={<EmptyState icon="cart-outline" title="No purchases found" message="Add material purchases from within a project." />}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={s.row} onPress={() => router.push({ pathname: '/(tabs)/purchases/form' as any, params: { id: String(item.id) } })} activeOpacity={0.75}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.productName} numberOfLines={1}>{item.product_name ?? 'Unknown product'}</Text>
-              {item.project_name && <Text style={s.projectName} numberOfLines={1}>{item.project_name}</Text>}
-              <Text style={s.meta}>{fmtDate(item.purchase_date)} · {item.quantity} {item.product_unit ?? ''} × {fmtINR(item.unit_amount)}</Text>
-              {item.supplier && <Text style={s.supplier} numberOfLines={1}>{item.supplier}</Text>}
-            </View>
-            <View style={s.rightCol}>
-              <Text style={s.amount}>{fmtINR(item.line_total)}</Text>
-              <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginTop: 6 }}>
-                <Ionicons name="trash-outline" size={16} color={Colors.danger} />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        )}
+        ListEmptyComponent={<EmptyState icon="cart-outline" title="No purchases found" message="Add material purchases from within a project or tap + to create a multi-project purchase." />}
+        renderItem={({ item }) => {
+          const isMulti = item.items && item.items.length > 0;
+          const displayTotal = item.total_amount ?? item.line_total;
+
+          if (isMulti) {
+            // Determine unique projects in items
+            const projectNames = [...new Set(item.items.map((it) => it.project_name).filter(Boolean))];
+            return (
+              <View style={s.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.productName} numberOfLines={1}>
+                    {item.invoice_reference ? `Ref: ${item.invoice_reference}` : `Purchase #${item.id}`}
+                  </Text>
+                  {projectNames.length > 0 && (
+                    <Text style={s.projectName} numberOfLines={1}>{projectNames.join(', ')}</Text>
+                  )}
+                  <Text style={s.meta}>{fmtDate(item.purchase_date)} · {item.items.length} item{item.items.length !== 1 ? 's' : ''}</Text>
+                  {item.items.map((it) => (
+                    <Text key={it.id} style={s.itemLine} numberOfLines={1}>
+                      {'· '}{it.product_name ?? 'Product'} — {it.quantity} × {fmtINR(it.unit_amount)}
+                    </Text>
+                  ))}
+                </View>
+                <View style={s.rightCol}>
+                  <Text style={s.amount}>{fmtINR(displayTotal)}</Text>
+                  <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginTop: 6 }}>
+                    <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          }
+
+          return (
+            <TouchableOpacity style={s.row} onPress={() => router.push({ pathname: '/(tabs)/purchases/form' as any, params: { id: String(item.id) } })} activeOpacity={0.75}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.productName} numberOfLines={1}>{item.product_name ?? 'Unknown product'}</Text>
+                {item.project_name && <Text style={s.projectName} numberOfLines={1}>{item.project_name}</Text>}
+                <Text style={s.meta}>{fmtDate(item.purchase_date)}{item.quantity != null ? ` · ${item.quantity} ${item.product_unit ?? ''} × ${fmtINR(item.unit_amount ?? 0)}` : ''}</Text>
+                {item.supplier && <Text style={s.supplier} numberOfLines={1}>{item.supplier}</Text>}
+              </View>
+              <View style={s.rightCol}>
+                <Text style={s.amount}>{fmtINR(displayTotal)}</Text>
+                <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginTop: 6 }}>
+                  <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
     </SafeAreaView>
   );
@@ -130,6 +178,7 @@ const s = StyleSheet.create({
   projectName: { fontSize: 12, color: Colors.info, fontWeight: '600', marginTop: 2 },
   meta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   supplier: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  itemLine: { fontSize: 11, color: Colors.textMuted, marginTop: 2, lineHeight: 16 },
   rightCol: { alignItems: 'flex-end', marginLeft: 12 },
   amount: { fontSize: 15, fontWeight: '800', color: Colors.text },
 });

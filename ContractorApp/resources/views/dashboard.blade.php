@@ -19,13 +19,13 @@
         <x-stat-card label="Purchase Value" :value="'₹'.number_format($summary['purchase_value'], 2)" icon="bi-cart3" accent="warning" :href="$user->can('purchases.view') ? route('purchases.index') : null" />
     </div>
     <div class="col-6 col-lg-4">
-        <x-stat-card label="Total Expenses" :value="'₹'.number_format($summary['total_expenses'], 2)" icon="bi-receipt" accent="danger" :href="$user->can('expenses.view') ? route('expenses.index') : null" />
+        <x-stat-card label="Expenses" :value="'₹'.number_format($summary['expenses'], 2)" icon="bi-receipt" accent="danger" :href="$user->can('expenses.view') ? route('expenses.index') : null" />
     </div>
     <div class="col-6 col-lg-4">
-        <x-stat-card label="Total Receipts" :value="'₹'.number_format($summary['total_receipts'], 2)" icon="bi-cash-coin" accent="success" :href="$user->can('payments.view') ? route('payments.index') : null" />
+        <x-stat-card label="Collections" :value="'₹'.number_format($summary['collections'], 2)" icon="bi-cash-coin" accent="success" :href="$user->can('payments.view') ? route('payments.index') : null" />
     </div>
     <div class="col-6 col-lg-4">
-        <x-stat-card label="Outstanding" :value="'₹'.number_format($summary['outstanding'], 2)" icon="bi-hourglass-split" accent="secondary" :href="$user->can('reports.view') ? route('reports.outstanding') : null" />
+        <x-stat-card label="Work Expenses" :value="'₹'.number_format($summary['work_expenses'], 2)" icon="bi-hammer" accent="secondary" :href="$user->can('works.view') ? route('works.index') : null" />
     </div>
 </div>
 

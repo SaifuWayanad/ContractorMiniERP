@@ -415,19 +415,21 @@
                             </td>
                         </tr>
                         @endforeach
-                        @foreach ($works->filter(fn($w) => $w->amount !== null) as $work)
-                        <tr>
-                            <td class="text-nowrap">{{ $work->created_at->format('d M Y') }}</td>
-                            <td>{{ $work->title }} <span class="badge bg-secondary ms-1">Work</span></td>
-                            <td class="d-none d-md-table-cell">Labour</td>
-                            <td class="d-none d-md-table-cell">—</td>
-                            <td class="text-end fw-semibold">₹{{ number_format((float)$work->amount, 2) }}</td>
-                            <td class="text-center">
-                                @can('update', $work)
-                                    <a href="{{ route('works.edit', [$work, 'from' => 'project']) }}" class="btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
-                                @endcan
-                            </td>
-                        </tr>
+                        @foreach ($works->filter(fn($w) => $w->payments->isNotEmpty()) as $work)
+                            @foreach ($work->payments as $wp)
+                            <tr>
+                                <td class="text-nowrap">{{ $work->created_at->format('d M Y') }}</td>
+                                <td>{{ $work->title }} <span class="badge bg-secondary ms-1">Work</span></td>
+                                <td class="d-none d-md-table-cell">Work</td>
+                                <td class="d-none d-md-table-cell">{{ $wp->payment_method ?? '—' }}</td>
+                                <td class="text-end fw-semibold">₹{{ number_format((float)$wp->amount, 2) }}</td>
+                                <td class="text-center">
+                                    @can('update', $work)
+                                        <a href="{{ route('works.edit', [$work, 'from' => 'project']) }}" class="btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                                    @endcan
+                                </td>
+                            </tr>
+                            @endforeach
                         @endforeach
                     </tbody>
                 </table>

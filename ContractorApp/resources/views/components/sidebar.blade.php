@@ -44,10 +44,17 @@
                 ['Expenses', 'bi-receipt', 'expenses.index', 'expenses.*', 'expenses.view'],
                 ['Collections', 'bi-cash-coin', 'payments.index', 'payments.*', 'payments.view'],
             ],
+            'EMPLOYEES' => [
+                ['Employees', 'bi-people-fill', 'employees.index', 'employees.*', 'employees.view'],
+                ['Attendance', 'bi-calendar-check', 'attendance.index', 'attendance.*', 'attendance.view'],
+                ['Salary Payments', 'bi-cash-stack', 'salary-payments.index', 'salary-payments.*', 'salary_payments.view'],
+            ],
             'REPORTS' => [
                 ['Project-wise', 'bi-bar-chart-line', 'reports.outstanding', 'reports.outstanding', 'reports.view'],
                 ['Customer-wise', 'bi-people', 'reports.customer-outstanding', 'reports.customer-outstanding', 'reports.view'],
                 ['Collections', 'bi-cash-stack', 'reports.collections', 'reports.collections', 'reports.view'],
+                ['Expenses', 'bi-graph-down-arrow', 'reports.expenses', 'reports.expenses', 'reports.view'],
+                ['Employees', 'bi-person-check', 'reports.employees', 'reports.employees', 'reports.view'],
             ],
         ];
 @endphp

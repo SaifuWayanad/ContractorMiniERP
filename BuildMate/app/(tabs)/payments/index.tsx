@@ -55,7 +55,7 @@ export default function PaymentsScreen() {
   const total = filtered.reduce((sum, p) => sum + p.amount_received, 0);
 
   async function handleDelete(id: number) {
-    Alert.alert('Delete Payment', 'Delete this payment record?', [
+    Alert.alert('Delete Collection', 'Delete this collection record?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try { await api.delete(`/mobile/payments/${id}`); load(); }
@@ -71,7 +71,7 @@ export default function PaymentsScreen() {
       <View style={s.header}>
         <View style={s.searchWrap}>
           <Ionicons name="search-outline" size={16} color={Colors.textMuted} style={{ marginRight: 8 }} />
-          <TextInput style={s.searchInput} value={search} onChangeText={setSearch} placeholder="Search payments…" placeholderTextColor={Colors.textMuted} />
+          <TextInput style={s.searchInput} value={search} onChangeText={setSearch} placeholder="Search collections…" placeholderTextColor={Colors.textMuted} />
           {search.length > 0 && <TouchableOpacity onPress={() => setSearch('')}><Ionicons name="close-circle" size={16} color={Colors.textMuted} /></TouchableOpacity>}
         </View>
         <TouchableOpacity style={s.addBtn} onPress={() => router.push('/(tabs)/payments/form' as any)} activeOpacity={0.8}>
@@ -81,7 +81,7 @@ export default function PaymentsScreen() {
 
       {filtered.length > 0 && (
         <View style={s.totalBar}>
-          <Text style={s.totalLabel}>{filtered.length} payment{filtered.length !== 1 ? 's' : ''}</Text>
+          <Text style={s.totalLabel}>{filtered.length} collection{filtered.length !== 1 ? 's' : ''}</Text>
           <Text style={s.totalValue}>{fmtINR(total)}</Text>
         </View>
       )}
@@ -91,7 +91,7 @@ export default function PaymentsScreen() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={filtered.length === 0 ? { flex: 1 } : s.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.accent} />}
-        ListEmptyComponent={<EmptyState icon="cash-outline" title="No payments recorded" message="Record client payments from within a project." />}
+        ListEmptyComponent={<EmptyState icon="cash-outline" title="No collections recorded" message="Record client collections from within a project." />}
         renderItem={({ item }) => (
           <TouchableOpacity style={s.row} onPress={() => router.push({ pathname: '/(tabs)/payments/form' as any, params: { id: String(item.id) } })} activeOpacity={0.75}>
             <View style={s.amountBox}>
@@ -101,7 +101,6 @@ export default function PaymentsScreen() {
             <View style={{ flex: 1 }}>
               {item.project_name && <Text style={s.projectName} numberOfLines={1}>{item.project_name}</Text>}
               {item.payment_method && <Text style={s.meta}>{item.payment_method}</Text>}
-              {item.receipt_reference && <Text style={s.meta}>Ref: {item.receipt_reference}</Text>}
               {item.notes && <Text style={s.notes} numberOfLines={1}>{item.notes}</Text>}
             </View>
             <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginLeft: 8 }}>

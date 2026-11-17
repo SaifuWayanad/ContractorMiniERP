@@ -5,11 +5,7 @@
 @use('Illuminate\Support\Number')
 
 @section('content')
-<x-page-header title="Outstanding Report" subtitle="Financial summary across all your projects.">
-    <x-slot:actions>
-        <a href="{{ route('reports.outstanding') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</a>
-    </x-slot:actions>
-</x-page-header>
+<x-page-header title="Outstanding Report" subtitle="Financial summary across all your projects." />
 
 {{-- KPI Cards --}}
 <div class="row g-3 mb-4">
@@ -55,10 +51,7 @@
     <div class="row g-2 align-items-end">
         <div class="col-sm-6 col-md-3">
             <label class="form-label form-label-sm fw-semibold">Search Project</label>
-            <div class="input-group input-group-sm">
-                <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" class="form-control" name="search" value="{{ $search }}" placeholder="Project name…" />
-            </div>
+            <input type="text" class="form-control form-control-sm" name="search" value="{{ $search }}" placeholder="Project name…" style="min-height:calc(1.5em + 0.5rem + 2px)" />
         </div>
         <div class="col-sm-6 col-md-3">
             <label class="form-label form-label-sm fw-semibold">Customer</label>
@@ -81,7 +74,7 @@
                 <input type="hidden" name="client_id" id="rptClientInput" value="{{ $clientIdFilter ?? '' }}">
             </div>
         </div>
-        <div class="col-sm-6 col-md-2">
+        <div class="col-sm-6 col-md-3">
             <label class="form-label form-label-sm fw-semibold">Location</label>
             <div class="cs-wrapper cs-sm" id="rptLocationWrapper">
                 <div class="cs-trigger">

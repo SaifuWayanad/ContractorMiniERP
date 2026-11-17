@@ -5,13 +5,11 @@
 @use('Illuminate\Support\Number')
 
 @section('content')
-<x-page-header title="Collection Report" subtitle="Customer-wise collections with project and transaction drill-down.">
-    <x-slot:actions>
-        <a href="{{ route('reports.collections') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
-        </a>
-    </x-slot:actions>
-</x-page-header>
+<x-page-header title="Collection Report" subtitle="Customer-wise collections with project and transaction drill-down." />
+
+@php
+$periodLabels = ['today'=>'Today','this_week'=>'This Week','this_month'=>'This Month','last_month'=>'Last Month','this_year'=>'This Year','all_time'=>'All Time','custom'=>'Custom…'];
+@endphp
 
 {{-- Summary Cards --}}
 <div class="row g-3 mb-4">
@@ -38,17 +36,22 @@
 {{-- Filters --}}
 <form method="get" action="{{ route('reports.collections') }}" class="mb-4" id="collectionsFilterForm">
     <div class="row g-2 align-items-end">
-        <div class="col-sm-6 col-md-2">
+        <div class="col-sm-6 col-md-3">
             <label class="form-label form-label-sm fw-semibold">Period</label>
-            <select name="period" id="periodSelect" class="form-select form-select-sm" onchange="handlePeriodChange(this.value)">
-                <option value="today"      {{ $period === 'today'      ? 'selected' : '' }}>Today</option>
-                <option value="this_week"  {{ $period === 'this_week'  ? 'selected' : '' }}>This Week</option>
-                <option value="this_month" {{ $period === 'this_month' ? 'selected' : '' }}>This Month</option>
-                <option value="last_month" {{ $period === 'last_month' ? 'selected' : '' }}>Last Month</option>
-                <option value="this_year"  {{ $period === 'this_year'  ? 'selected' : '' }}>This Year</option>
-                <option value="all_time"   {{ $period === 'all_time'   ? 'selected' : '' }}>All Time</option>
-                <option value="custom"     {{ $period === 'custom'     ? 'selected' : '' }}>Custom…</option>
-            </select>
+            <div class="cs-wrapper cs-sm" id="colPeriodWrapper">
+                <div class="cs-trigger">
+                    <span class="cs-value">{{ $periodLabels[$period] ?? 'All Time' }}</span>
+                    <i class="bi bi-chevron-down cs-arrow"></i>
+                </div>
+                <div class="cs-panel">
+                    <div class="cs-list">
+                        @foreach($periodLabels as $val => $label)
+                            <div class="cs-item" data-value="{{ $val }}">{{ $label }}</div>
+                        @endforeach
+                    </div>
+                </div>
+                <input type="hidden" name="period" id="colPeriodInput" value="{{ $period }}">
+            </div>
         </div>
         <div id="customDateRange" class="col-sm-12 col-md-4 {{ $period === 'custom' ? '' : 'd-none' }}">
             <div class="row g-2">
@@ -87,46 +90,7 @@
                 <input type="hidden" name="client_id" id="colClientInput" value="{{ $clientId ?? '' }}">
             </div>
         </div>
-        <div class="col-sm-6 col-md-3">
-            <label class="form-label form-label-sm fw-semibold">Project</label>
-            <div class="cs-wrapper cs-sm" id="colProjectWrapper">
-                <div class="cs-trigger">
-                    <span class="cs-value {{ $projectId ? '' : 'cs-placeholder' }}">
-                        {{ $projectId ? ($projects[$projectId] ?? 'All projects') : 'All projects' }}
-                    </span>
-                    <i class="bi bi-chevron-down cs-arrow"></i>
-                </div>
-                <div class="cs-panel">
-                    <div class="cs-search-wrap"><i class="bi bi-search"></i><input type="text" class="cs-search" placeholder="Search…"></div>
-                    <div class="cs-list">
-                        <div class="cs-item" data-value="">All projects</div>
-                        @foreach($projects as $id => $name)
-                            <div class="cs-item" data-value="{{ $id }}">{{ $name }}</div>
-                        @endforeach
-                    </div>
-                </div>
-                <input type="hidden" name="project_id" id="colProjectInput" value="{{ $projectId ?? '' }}">
-            </div>
-        </div>
-        <div class="col-sm-6 col-md-2">
-            <label class="form-label form-label-sm fw-semibold">Method</label>
-            <div class="cs-wrapper cs-sm" id="colMethodWrapper">
-                <div class="cs-trigger">
-                    <span class="cs-value {{ $methodFilter ? '' : 'cs-placeholder' }}">{{ $methodFilter ?: 'All methods' }}</span>
-                    <i class="bi bi-chevron-down cs-arrow"></i>
-                </div>
-                <div class="cs-panel">
-                    <div class="cs-list">
-                        <div class="cs-item" data-value="">All methods</div>
-                        @foreach($allMethods as $m)
-                            <div class="cs-item" data-value="{{ $m }}">{{ $m }}</div>
-                        @endforeach
-                    </div>
-                </div>
-                <input type="hidden" name="payment_method" id="colMethodInput" value="{{ $methodFilter ?? '' }}">
-            </div>
-        </div>
-        @if($projectId || $clientId || $methodFilter || $period !== 'all_time')
+        @if($clientId || $period !== 'all_time')
         <div class="col-auto align-self-end">
             <a href="{{ route('reports.collections') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
         </div>
@@ -176,15 +140,15 @@
                             </span>
                         </td>
                         @foreach($methods as $method)
-                            <td style="padding:.875rem 1rem;color:#374151;font-weight:500;white-space:nowrap">
+                            <td style="padding:.875rem 1rem;font-weight:500;white-space:nowrap">
                                 @if($customer['methods'][$method] > 0)
-                                    ₹{{ number_format($customer['methods'][$method], 2) }}
+                                    <span style="color:#16a34a">₹{{ number_format($customer['methods'][$method], 2) }}</span>
                                 @else
                                     <span style="color:#d1d5db">—</span>
                                 @endif
                             </td>
                         @endforeach
-                        <td style="padding:.875rem 1rem;font-weight:700;color:#111827;white-space:nowrap">
+                        <td style="padding:.875rem 1rem;font-weight:700;color:#15803d;white-space:nowrap">
                             ₹{{ number_format($customer['total'], 2) }}
                         </td>
                     </tr>
@@ -208,15 +172,15 @@
                                 </span>
                             </td>
                             @foreach($methods as $method)
-                                <td style="padding:.75rem 1rem;color:#6b7280;white-space:nowrap">
+                                <td style="padding:.75rem 1rem;white-space:nowrap">
                                     @if($project['methods'][$method] > 0)
-                                        ₹{{ number_format($project['methods'][$method], 2) }}
+                                        <span style="color:#16a34a">₹{{ number_format($project['methods'][$method], 2) }}</span>
                                     @else
                                         <span style="color:#e5e7eb">—</span>
                                     @endif
                                 </td>
                             @endforeach
-                            <td style="padding:.75rem 1rem;font-weight:600;color:#374151;white-space:nowrap">
+                            <td style="padding:.75rem 1rem;font-weight:600;color:#15803d;white-space:nowrap">
                                 ₹{{ number_format($project['total'], 2) }}
                             </td>
                         </tr>
@@ -252,13 +216,13 @@
                                                 @foreach($methods as $method)
                                                     <td style="padding:.5rem .75rem;font-size:.85rem;white-space:nowrap">
                                                         @if($txnMethod === $method)
-                                                            <span style="color:#111827;font-weight:500">₹{{ number_format((float)$txn->amount_received, 2) }}</span>
+                                                            <span style="color:#16a34a;font-weight:500">₹{{ number_format((float)$txn->amount_received, 2) }}</span>
                                                         @else
                                                             <span style="color:#e5e7eb">—</span>
                                                         @endif
                                                     </td>
                                                 @endforeach
-                                                <td style="padding:.5rem .75rem;font-size:.85rem;font-weight:600;color:#111827;white-space:nowrap">
+                                                <td style="padding:.5rem .75rem;font-size:.85rem;font-weight:600;color:#15803d;white-space:nowrap">
                                                     ₹{{ number_format((float)$txn->amount_received, 2) }}
                                                 </td>
                                             </tr>
@@ -275,11 +239,11 @@
                 <tr style="background:#f1f5f9;border-top:2px solid #e2e8f0">
                     <td style="padding:.875rem 1rem;font-weight:700;color:#111827;font-size:.9rem">Grand Total</td>
                     @foreach($methods as $method)
-                        <td style="padding:.875rem 1rem;font-weight:600;color:#374151;white-space:nowrap">
+                        <td style="padding:.875rem 1rem;font-weight:600;color:#16a34a;white-space:nowrap">
                             ₹{{ number_format($methodGrandTotals[$method], 2) }}
                         </td>
                     @endforeach
-                    <td style="padding:.875rem 1rem;font-weight:700;color:#111827;font-size:.95rem;white-space:nowrap">
+                    <td style="padding:.875rem 1rem;font-weight:700;color:#15803d;font-size:.95rem;white-space:nowrap">
                         ₹{{ number_format($grandTotal, 2) }}
                     </td>
                 </tr>
@@ -346,10 +310,12 @@ function handlePeriodChange(val) {
         var input = document.getElementById(inputId);
         var orig = cs._select.bind(cs);
         cs._select = function(v, l) { orig(v, l); input.value = v; if (autoSubmit) form.submit(); };
+        return cs;
     }
+    var periodCs = bindCs('colPeriodWrapper', 'colPeriodInput', false);
+    var periodOrig = periodCs._select.bind(periodCs);
+    periodCs._select = function(v, l) { periodOrig(v, l); handlePeriodChange(v); };
     bindCs('colClientWrapper', 'colClientInput', true);
-    bindCs('colProjectWrapper', 'colProjectInput', true);
-    bindCs('colMethodWrapper', 'colMethodInput', true);
 })();
 </script>
 @endpush

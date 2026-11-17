@@ -122,11 +122,15 @@ export default function DashboardScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/payments' as any)} activeOpacity={0.8}>
               <Ionicons name="cash-outline" size={22} color={Colors.primary} />
-              <Text style={styles.quickLabel}>Payments</Text>
+              <Text style={styles.quickLabel}>Collections</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/reports/outstanding' as any)} activeOpacity={0.8}>
               <Ionicons name="bar-chart-outline" size={22} color={Colors.primary} />
-              <Text style={styles.quickLabel}>Report</Text>
+              <Text style={styles.quickLabel}>Outstanding</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(tabs)/reports/collections' as any)} activeOpacity={0.8}>
+              <Ionicons name="receipt-outline" size={22} color={Colors.primary} />
+              <Text style={styles.quickLabel}>Collections</Text>
             </TouchableOpacity>
           </View>
         </Card>

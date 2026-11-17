@@ -73,21 +73,21 @@ export function SelectPicker({
                 {item.value === value && <Ionicons name="checkmark" size={18} color={Colors.accent} />}
               </TouchableOpacity>
             )}
-            ItemSeparatorComponent={() => <View style={s.sep} />}
-            ListFooterComponent={onAddNew ? (
+            ItemSeparatorComponent={() => (<View style={s.sep} />)}
+            ListFooterComponent={onAddNew ? () => (
               <TouchableOpacity
                 style={s.addNew}
                 onPress={() => {
                   setOpen(false);
                   // Let the picker finish closing before another modal opens (iOS won't stack them otherwise).
-                  setTimeout(onAddNew, 350);
+                  setTimeout(onAddNew!, 350);
                 }}
                 activeOpacity={0.7}
               >
                 <Ionicons name="add-circle-outline" size={20} color={Colors.accent} />
                 <Text style={s.addNewText}>{addNewLabel}</Text>
               </TouchableOpacity>
-            ) : null}
+            ) : undefined}
           />
         </SafeAreaView>
       </Modal>

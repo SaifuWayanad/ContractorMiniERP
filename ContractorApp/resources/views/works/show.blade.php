@@ -37,8 +37,26 @@
                 <dt>Priority</dt><dd><x-status-badge :status="$work->priority" /></dd>
                 <dt>Project</dt><dd><a href="{{ route('projects.show', $work->project) }}">{{ $work->project->name }}</a></dd>
                 <dt>Client</dt><dd>@if ($work->client)<a href="{{ route('clients.show', $work->client) }}">{{ $work->client->name }}</a>@else — @endif</dd>
-                @if ($work->amount !== null)
-                <dt>Amount</dt><dd>₹{{ number_format((float)$work->amount, 2) }}</dd>
+                @if ($work->payments->isNotEmpty())
+                <dt>Payments</dt>
+                <dd>
+                    <table class="table table-sm mb-0" style="width:auto;min-width:200px">
+                        <tbody>
+                            @foreach ($work->payments as $wp)
+                            <tr>
+                                <td class="ps-0 text-muted" style="font-size:.85rem">{{ $wp->payment_method ?? '—' }}</td>
+                                <td class="pe-0 text-end fw-semibold" style="font-size:.85rem;padding-left:1.5rem">₹{{ number_format((float)$wp->amount, 2) }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top:2px solid #dee2e6">
+                                <td class="ps-0 fw-semibold" style="font-size:.85rem">Total</td>
+                                <td class="pe-0 text-end fw-bold" style="font-size:.85rem;padding-left:1.5rem">₹{{ number_format((float)$work->amount, 2) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </dd>
                 @endif
             </dl>
         </x-card>
@@ -46,7 +64,7 @@
             <x-card title="Description"><p class="mb-0" style="white-space: pre-line">{{ $work->description }}</p></x-card>
         @endif
     </div>
-    <div class="col-12 col-lg-5">
+    <div class="col-12 col-lg-5 d-flex flex-column gap-3">
         <x-card title="Schedule">
             <dl class="detail-list">
                 <dt>Start date</dt><dd>{{ $work->start_date?->format('d M Y') ?? '—' }}</dd>
@@ -55,6 +73,19 @@
                 <dt>Created</dt><dd>{{ $work->created_at->format('d M Y') }}</dd>
             </dl>
         </x-card>
+
+        @if($work->employees->isNotEmpty())
+        <x-card title="Assigned Employees">
+            <div class="d-flex flex-wrap gap-2">
+                @foreach($work->employees as $emp)
+                <a href="{{ route('employees.show', $emp) }}" class="d-inline-flex align-items-center gap-2 border rounded px-3 py-2 text-decoration-none text-body" style="font-size:.88rem">
+                    <i class="bi bi-person-fill text-muted"></i>
+                    <span>{{ $emp->name }}</span>
+                </a>
+                @endforeach
+            </div>
+        </x-card>
+        @endif
     </div>
 </div>
 @endsection

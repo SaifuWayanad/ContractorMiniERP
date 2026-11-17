@@ -121,9 +121,10 @@ export default function TabsLayout() {
       <Tabs.Screen name="purchases/form" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="expenses/index" options={{ href: null, headerShown: false, headerTitle: 'Expenses' }} />
       <Tabs.Screen name="expenses/form" options={{ href: null, headerShown: false }} />
-      <Tabs.Screen name="payments/index" options={{ href: null, headerShown: false, headerTitle: 'Payments' }} />
+      <Tabs.Screen name="payments/index" options={{ href: null, headerShown: false, headerTitle: 'Collections' }} />
       <Tabs.Screen name="payments/form" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="reports/outstanding" options={{ href: null, headerShown: false, headerTitle: 'Outstanding Report' }} />
+      <Tabs.Screen name="reports/collections" options={{ href: null, headerShown: false, headerTitle: 'Collection Report' }} />
       <Tabs.Screen name="admin/contractors/index" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="admin/contractors/[id]" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="admin/contractors/form" options={{ href: null, headerShown: false }} />

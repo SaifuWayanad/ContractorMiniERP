@@ -48,6 +48,16 @@
                 @error('category')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
             </div>
 
+            <div class="col-md-3">
+                <label class="form-label fw-semibold d-block">Work Related</label>
+                <div class="form-check form-switch mt-1">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                        id="isWorkRelatedToggle" name="is_work_related" value="1"
+                        {{ old('is_work_related', $expense->is_work_related ?? false) ? 'checked' : '' }}>
+                    <label class="form-check-label text-muted small" for="isWorkRelatedToggle">Mark as work-related</label>
+                </div>
+            </div>
+
             <x-form.input name="amount" label="Amount (₹)" type="number" step="0.01" min="0" :value="$expense->amount" :required="true" col="col-md-3" />
 
             {{-- Payment Method CS-dropdown --}}

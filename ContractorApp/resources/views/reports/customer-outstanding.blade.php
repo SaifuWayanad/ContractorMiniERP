@@ -5,11 +5,7 @@
 @use('Illuminate\Support\Number')
 
 @section('content')
-<x-page-header title="Customer-wise Outstanding" subtitle="Financial summary grouped by customer.">
-    <x-slot:actions>
-        <a href="{{ route('reports.customer-outstanding') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</a>
-    </x-slot:actions>
-</x-page-header>
+<x-page-header title="Customer-wise Outstanding" subtitle="Financial summary grouped by customer." />
 
 {{-- KPI Cards --}}
 <div class="row g-3 mb-4">
@@ -53,12 +49,9 @@
 {{-- Filters --}}
 <form method="get" action="{{ route('reports.customer-outstanding') }}" class="mb-4" id="custFilterForm" data-auto-filter>
     <div class="row g-2 align-items-end">
-        <div class="col-sm-6 col-md-4">
+        <div class="col-sm-6 col-md-3">
             <label class="form-label form-label-sm fw-semibold">Search Customer</label>
-            <div class="input-group input-group-sm">
-                <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" class="form-control" name="search" value="{{ $search }}" placeholder="Customer name…" />
-            </div>
+            <input type="text" class="form-control form-control-sm" name="search" value="{{ $search }}" placeholder="Customer name…" style="min-height:calc(1.5em + 0.5rem + 2px)" />
         </div>
         <div class="col-sm-6 col-md-3">
             <label class="form-label form-label-sm fw-semibold">Location</label>

@@ -11,6 +11,16 @@
     </x-slot:actions>
 </x-page-header>
 
+{{-- KPI --}}
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-4 col-md-3">
+        <div class="kpi-card kpi-blue h-100">
+            <div class="kpi-label"><i class="bi bi-cart3 me-1"></i>Total Purchase Value</div>
+            <div class="kpi-value">₹{{ number_format($totalValue, 2) }}</div>
+        </div>
+    </div>
+</div>
+
 {{-- Filters --}}
 <form method="get" action="{{ route('purchases.index') }}" class="mb-4" data-auto-filter>
     <div class="row g-2 align-items-end">

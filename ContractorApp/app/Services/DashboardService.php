@@ -13,6 +13,7 @@ use App\Models\ProjectPayment;
 use App\Models\Purchase;
 use App\Models\Visit;
 use App\Models\Work;
+use App\Models\WorkPayment;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
 use Illuminate\Database\Eloquent\Collection;
@@ -50,11 +51,10 @@ class DashboardService
             ->first();
 
         $purchaseValue  = (float) Purchase::forContractor($contractorId)->sum('line_total');
-        $totalExpenses  = (float) Expense::forContractor($contractorId)->sum('amount')
-                        + (float) Work::forContractor($contractorId)->whereNotNull('amount')->sum('amount');
-        $totalReceipts  = (float) ProjectPayment::forContractor($contractorId)->sum('amount_received');
+        $expenses       = (float) Expense::forContractor($contractorId)->sum('amount');
+        $workExpenses   = (float) WorkPayment::whereHas('work', fn ($q) => $q->where('contractor_id', $contractorId))->sum('amount');
+        $collections    = (float) ProjectPayment::forContractor($contractorId)->sum('amount_received');
         $totalBudget    = (float) Project::forContractor($contractorId)->sum('budget');
-        $outstanding    = $totalBudget - $totalReceipts;
 
         return [
             'clients' => Client::forContractor($contractorId)->count(),
@@ -67,10 +67,13 @@ class DashboardService
             'new_projects' => (int) $projectCounts->created_in_period,
             'works_completed' => Work::forContractor($contractorId)->whereBetween('completed_at', $period->range())->count(),
             'projects_completed' => Project::forContractor($contractorId)->where('status', ProjectStatus::Completed)->whereBetween('actual_end_date', $period->range())->count(),
-            'purchase_value' => $purchaseValue,
-            'total_expenses' => $totalExpenses,
-            'total_receipts' => $totalReceipts,
-            'outstanding'    => $outstanding,
+            'purchase_value'  => $purchaseValue,
+            'expenses'        => $expenses + $workExpenses,
+            'work_expenses'   => $workExpenses,
+            'collections'     => $collections,
+            'total_expenses'  => $expenses + $workExpenses,
+            'total_receipts'  => $collections,
+            'outstanding'     => $totalBudget - $collections,
         ];
     }
 

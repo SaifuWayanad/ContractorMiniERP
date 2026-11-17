@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AttendanceStatus;
+use App\Models\Attendance;
 use App\Models\Client;
+use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Project;
 use App\Models\ProjectPayment;
 use App\Models\Purchase;
 use App\Models\Work;
+use App\Models\WorkPayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -209,6 +213,92 @@ class ReportController extends Controller
         ]);
     }
 
+    public function expenses(Request $request): View
+    {
+        $this->authorize('viewAny', Expense::class);
+
+        $period         = $request->string('period')->trim()->value() ?: 'all_time';
+        $projectId      = $request->integer('project_id') ?: null;
+        $categoryFilter = $request->string('category')->trim()->value() ?: null;
+
+        [$dateFrom, $dateTo] = match ($period) {
+            'today'      => [today()->toDateString(), today()->toDateString()],
+            'this_week'  => [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()],
+            'this_month' => [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()],
+            'last_month' => [now()->subMonthNoOverflow()->startOfMonth()->toDateString(), now()->subMonthNoOverflow()->endOfMonth()->toDateString()],
+            'this_year'  => [now()->startOfYear()->toDateString(), now()->endOfYear()->toDateString()],
+            'all_time'   => [null, null],
+            'custom'     => [
+                $request->string('date_from')->trim()->value() ?: null,
+                $request->string('date_to')->trim()->value() ?: null,
+            ],
+            default      => [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()],
+        };
+
+        // Expense records
+        $expenseRecords = Expense::query()
+            ->with(['project:id,name,project_number'])
+            ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
+            ->when($categoryFilter, fn ($q) => $q->where('category', $categoryFilter))
+            ->when($dateFrom, fn ($q) => $q->whereDate('expense_date', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->whereDate('expense_date', '<=', $dateTo))
+            ->get();
+
+        $expenseRows = $expenseRecords->map(fn ($e) => [
+            'date'           => $e->expense_date,
+            'project'        => $e->project,
+            'category'       => $e->category,
+            'heading'        => $e->heading,
+            'payment_method' => $e->payment_method,
+            'amount'         => (float) $e->amount,
+            'is_work'        => (bool) $e->is_work_related,
+        ]);
+
+        // Work payment records (one row per payment entry, only when no category filter or filter = "Labour")
+        $workRows = collect();
+        if (! $categoryFilter || strtolower($categoryFilter) === 'work') {
+            $workRows = WorkPayment::query()
+                ->with(['work:id,title,project_id,created_at', 'work.project:id,name,project_number'])
+                ->when($projectId, fn ($q) => $q->whereHas('work', fn ($w) => $w->where('project_id', $projectId)))
+                ->when($dateFrom, fn ($q) => $q->whereHas('work', fn ($w) => $w->whereDate('created_at', '>=', $dateFrom)))
+                ->when($dateTo, fn ($q) => $q->whereHas('work', fn ($w) => $w->whereDate('created_at', '<=', $dateTo)))
+                ->get()
+                ->map(fn ($wp) => [
+                    'date'           => $wp->work?->created_at->toDate(),
+                    'project'        => $wp->work?->project,
+                    'category'       => 'Work',
+                    'heading'        => $wp->work?->title,
+                    'payment_method' => $wp->payment_method,
+                    'amount'         => (float) $wp->amount,
+                    'is_work'        => true,
+                ]);
+        }
+
+        $rows = $expenseRows->concat($workRows)
+            ->sortByDesc('date')
+            ->values();
+
+        $allCategories = Expense::whereNotNull('category')
+            ->where('category', '!=', '')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->concat(['Work'])
+            ->unique()->sort()->values();
+
+        return view('reports.expenses', [
+            'rows'           => $rows,
+            'grandTotal'     => $rows->sum('amount'),
+            'period'         => $period,
+            'dateFrom'       => $dateFrom,
+            'dateTo'         => $dateTo,
+            'projectId'      => $projectId,
+            'categoryFilter' => $categoryFilter,
+            'projects'       => Project::orderBy('name')->pluck('name', 'id'),
+            'allCategories'  => $allCategories,
+        ]);
+    }
+
     public function customerOutstanding(Request $request): View
     {
         $this->authorize('viewAny', \App\Models\Project::class);
@@ -291,6 +381,61 @@ class ReportController extends Controller
             'search'         => $search,
             'locationFilter' => $locationFilter,
             'locations'      => Project::whereNotNull('location')->where('location', '!=', '')->distinct()->orderBy('location')->pluck('location'),
+        ]);
+    }
+
+    public function employees(Request $request): View
+    {
+        $this->authorize('reports.view');
+
+        $filters = [
+            'employee_id' => $request->integer('employee_id') ?: null,
+            'month'       => $request->string('month')->value() ?: now()->format('Y-m'),
+        ];
+
+        [$year, $month] = explode('-', $filters['month']);
+
+        $employees = Employee::orderBy('name')->get(['id', 'name', 'designation', 'status', 'salary_type', 'salary_amount']);
+
+        $attendanceRows = Attendance::with('employee:id,name')
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->when($filters['employee_id'], fn ($q, $eid) => $q->where('employee_id', $eid))
+            ->get();
+
+        $summary = $employees
+            ->when($filters['employee_id'], fn ($c) => $c->where('id', $filters['employee_id']))
+            ->map(function (Employee $emp) use ($attendanceRows): array {
+                $rows = $attendanceRows->where('employee_id', $emp->id);
+                $present = $rows->filter(fn ($r) => $r->morning_status === AttendanceStatus::Present)->count();
+                $absent  = $rows->filter(fn ($r) => $r->morning_status === AttendanceStatus::Absent)->count();
+                $half    = $rows->filter(fn ($r) => $r->morning_status === AttendanceStatus::HalfDay)->count();
+                $leave   = $rows->filter(fn ($r) => $r->morning_status === AttendanceStatus::Leave)->count();
+
+                return [
+                    'employee'   => $emp,
+                    'present'    => $present,
+                    'absent'     => $absent,
+                    'half_day'   => $half,
+                    'leave'      => $leave,
+                    'total_days' => $rows->count(),
+                ];
+            })
+            ->values();
+
+        $allEmployees = Employee::orderBy('name')->pluck('name', 'id');
+        $months = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $m = now()->subMonths($i);
+            $months[$m->format('Y-m')] = $m->format('M Y');
+        }
+
+        return view('reports.employees', [
+            'summary'      => $summary,
+            'filters'      => $filters,
+            'allEmployees' => $allEmployees,
+            'months'       => $months,
+            'selectedMonth' => $filters['month'],
         ]);
     }
 }

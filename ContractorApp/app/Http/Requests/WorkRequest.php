@@ -36,7 +36,10 @@ class WorkRequest extends FormRequest
             'assigned_to' => ['nullable', 'integer', Rule::exists('users', 'id')->where('contractor_id', $contractorId)->where('status', UserStatus::Active->value)->whereNull('deleted_at')],
             'priority' => ['required', Rule::enum(WorkPriority::class)],
             'status' => ['required', Rule::enum(WorkStatus::class)],
-            'amount' => ['nullable', 'numeric', 'min:0'],
+            'amount'                       => ['nullable', 'numeric', 'min:0'],
+            'payments'                     => ['nullable', 'array'],
+            'payments.*.payment_method'    => ['nullable', 'string', 'max:100'],
+            'payments.*.amount'            => ['required_with:payments.*', 'numeric', 'min:0'],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
         ];
