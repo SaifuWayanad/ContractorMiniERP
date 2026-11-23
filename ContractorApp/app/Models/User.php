@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\RoleType;
 use App\Enums\UserStatus;
+use App\Models\Employee;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -134,5 +135,26 @@ class User extends Authenticatable
             ->take(2)
             ->map(fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)))
             ->implode('');
+    }
+
+    /**
+     * The Employee record linked to this user (if any). Cached after first call.
+     */
+    public function linkedEmployee(): ?Employee
+    {
+        if (! $this->isContractorUser()) {
+            return null;
+        }
+
+        return once(fn () => Employee::withoutGlobalScopes()->where('user_id', $this->id)->first());
+    }
+
+    /**
+     * True when this user is a contractor staff member linked to an employee record.
+     * Employee portal users see only their own assigned projects and works.
+     */
+    public function isEmployeePortal(): bool
+    {
+        return $this->linkedEmployee() !== null;
     }
 }

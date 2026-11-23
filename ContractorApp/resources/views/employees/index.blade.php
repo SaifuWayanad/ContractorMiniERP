@@ -19,14 +19,14 @@
         <div class="col-sm-6 col-md-3">
             <div class="cs-wrapper cs-sm" id="empStatusWrapper">
                 <div class="cs-trigger">
-                    <span class="cs-value {{ $filters['status'] ? '' : 'cs-placeholder' }}">{{ $filters['status'] ? ($statusOptions[$filters['status']] ?? 'All Statuses') : 'All Statuses' }}</span>
+                    <span class="cs-value {{ $filters['status'] ? '' : 'cs-placeholder' }}">{{ $filters['status'] ?: 'All Statuses' }}</span>
                     <i class="bi bi-chevron-down cs-arrow"></i>
                 </div>
                 <div class="cs-panel">
                     <div class="cs-list">
                         <div class="cs-item" data-value="">All Statuses</div>
-                        @foreach($statusOptions as $val => $label)
-                            <div class="cs-item" data-value="{{ $val }}">{{ $label }}</div>
+                        @foreach($statusOptions as $s)
+                            <div class="cs-item" data-value="{{ $s }}">{{ $s }}</div>
                         @endforeach
                     </div>
                 </div>
@@ -73,7 +73,7 @@
                     <td class="d-none d-md-table-cell">{{ $employee->designation ?? '—' }}</td>
                     <td class="d-none d-md-table-cell">{{ $employee->phone ?? '—' }}</td>
                     <td>
-                        <span class="badge {{ $employee->status->badgeClass() }}">{{ $employee->status->label() }}</span>
+                        <span class="badge {{ App\Models\EmployeeStatusOption::badgeClass($employee->status ?? '') }}">{{ $employee->status ?? '—' }}</span>
                     </td>
                     <td class="text-end">
                         <div class="dropdown">

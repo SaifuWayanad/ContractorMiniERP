@@ -23,19 +23,18 @@
                     @csrf
 
                     <div class="mb-3">
-                        <label for="loginEmail" class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
-                        <input type="email" id="loginEmail" name="email" class="form-control @error('email') is-invalid @enderror"
-                            value="{{ old('email', $employee->email) }}"
-                            required maxlength="200" autocomplete="email" autofocus />
-                        @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        <div class="form-text">This will be the username to log in.</div>
+                        <label for="loginUsername" class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                        <input type="text" id="loginUsername" name="username" class="form-control @error('username') is-invalid @enderror"
+                            value="{{ old('username') }}"
+                            required maxlength="50" autocomplete="username" autofocus />
+                        @error('username')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 
                     <div class="mb-3">
                         <label for="loginPassword" class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <input type="password" id="loginPassword" name="password" class="form-control @error('password') is-invalid @enderror"
-                                required minlength="6" autocomplete="new-password" />
+                                required autocomplete="new-password" />
                             <button type="button" class="btn btn-outline-secondary" id="togglePwd" tabindex="-1"><i class="bi bi-eye"></i></button>
                         </div>
                         @error('password')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
@@ -44,7 +43,7 @@
                     <div class="mb-4">
                         <label for="loginPasswordConfirm" class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
                         <input type="password" id="loginPasswordConfirm" name="password_confirmation" class="form-control"
-                            required minlength="6" autocomplete="new-password" />
+                            required autocomplete="new-password" />
                     </div>
 
                     <div class="d-flex gap-2">
@@ -60,7 +59,7 @@
                 <div class="d-flex gap-2 align-items-start">
                     <i class="bi bi-info-circle text-info mt-1"></i>
                     <div class="small text-muted">
-                        This creates a <strong>Contractor Staff</strong> login. The employee can sign in at <strong>{{ url('/login') }}</strong> using their email and the password you set.
+                        This creates a <strong>Contractor Staff</strong> login. The employee can sign in at <strong>{{ url('/login') }}</strong> using their username and the password you set.
                     </div>
                 </div>
             </div>

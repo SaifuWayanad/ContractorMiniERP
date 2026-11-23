@@ -1,5 +1,26 @@
 @php
     $user = auth()->user();
+    $isEmployeePortal = $user->isContractorUser() && $user->isEmployeePortal();
+
+    // Build employee portal sidebar from contractor's configured sections
+    if ($isEmployeePortal) {
+        $enabledSections = $user->contractor?->enabledPortalSections() ?? ['dashboard', 'projects', 'works'];
+        $allPortalItems = [
+            'dashboard'       => ['MAIN',      'Dashboard',       'bi-speedometer2',  'dashboard',          'dashboard',                                                    'dashboard.view'],
+            'projects'        => ['WORK',       'Projects',        'bi-building',      'projects.index',     'projects.index|projects.create|projects.show|projects.edit',   'projects.view'],
+            'works'           => ['WORK',       'Works',           'bi-list-check',    'works.index',        'works.*',                                                      'works.view'],
+            'attendance'      => ['EMPLOYEES',  'Attendance',      'bi-calendar-check','attendance.calendar-view', 'attendance.*',                                            'attendance.view'],
+            'salary_payments' => ['EMPLOYEES',  'Salary Payments', 'bi-cash-coin',     'salary-payments.index','salary-payments.*',                                          'salary_payments.view'],
+            'visits'          => ['VISITS',     'Visits',          'bi-geo-alt',       'visits.index',       'visits.*',                                                     'visits.view'],
+        ];
+        $employeePortalSections = [];
+        foreach ($enabledSections as $slug) {
+            if (isset($allPortalItems[$slug])) {
+                [$group, $label, $icon, $route, $pattern, $perm] = $allPortalItems[$slug];
+                $employeePortalSections[$group][] = [$label, $icon, $route, $pattern, $perm];
+            }
+        }
+    }
 
     $sections = $user->isAdmin()
         ? [
@@ -24,7 +45,7 @@
                 ['Settings', 'bi-gear', 'admin.settings.edit', 'admin.settings.*', 'settings.view'],
             ],
         ]
-        : [
+        : ($isEmployeePortal ? $employeePortalSections : [
             'MAIN' => [
                 ['Dashboard', 'bi-speedometer2', 'dashboard', 'dashboard', 'dashboard.view'],
             ],
@@ -47,16 +68,18 @@
             'EMPLOYEES' => [
                 ['Employees', 'bi-people-fill', 'employees.index', 'employees.*', 'employees.view'],
                 ['Attendance', 'bi-calendar-check', 'attendance.index', 'attendance.*', 'attendance.view'],
-                ['Salary Payments', 'bi-cash-stack', 'salary-payments.index', 'salary-payments.*', 'salary_payments.view'],
+                ['Salary Payments', 'bi-cash-coin', 'salary-payments.index', 'salary-payments.*', 'salary_payments.view'],
+                ['Portal Settings', 'bi-toggles', 'employee-portal-settings.edit', 'employee-portal-settings.*', 'employees.view'],
             ],
             'REPORTS' => [
                 ['Project-wise', 'bi-bar-chart-line', 'reports.outstanding', 'reports.outstanding', 'reports.view'],
                 ['Customer-wise', 'bi-people', 'reports.customer-outstanding', 'reports.customer-outstanding', 'reports.view'],
                 ['Collections', 'bi-cash-stack', 'reports.collections', 'reports.collections', 'reports.view'],
                 ['Expenses', 'bi-graph-down-arrow', 'reports.expenses', 'reports.expenses', 'reports.view'],
-                ['Employees', 'bi-person-check', 'reports.employees', 'reports.employees', 'reports.view'],
+                ['Attendance', 'bi-person-check', 'reports.employees', 'reports.employees', 'reports.view'],
+                ['Performance', 'bi-trophy', 'reports.employee-performance', 'reports.employee-performance', 'reports.view'],
             ],
-        ];
+        ]);
 @endphp
 
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
@@ -67,7 +90,9 @@
 
     <nav class="sidebar-nav">
         @foreach ($sections as $heading => $items)
-            @php($visible = array_filter($items, fn (array $item): bool => $user->can($item[4])))
+            @php($visible = $isEmployeePortal
+                ? $items  // contractor already decided which sections to show
+                : array_filter($items, fn (array $item): bool => $user->can($item[4])))
             @if ($visible)
                 @if ($heading)
                     <div class="sidebar-heading">{{ $heading }}</div>

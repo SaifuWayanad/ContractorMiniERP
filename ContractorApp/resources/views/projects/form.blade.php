@@ -306,7 +306,7 @@
         try {
             var body = { name: name };
             if (qcPhone.value.trim()) body.phone = qcPhone.value.trim();
-            var res = await fetch('{{ route('clients.quick') }}', {
+            var res = await fetch('{{ route('clients.quick', [], false) }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
                 body: JSON.stringify(body),
@@ -389,7 +389,7 @@
         if (!name) { wtModalName.classList.add('is-invalid'); wtModalError.textContent = 'Name is required.'; return; }
         wtModalSave.disabled = true;
         try {
-            var res = await fetch('{{ route('work-types.quick') }}', {
+            var res = await fetch('{{ route('work-types.quick', [], false) }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
                 body: JSON.stringify({ name: name }),

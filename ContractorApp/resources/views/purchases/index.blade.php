@@ -84,7 +84,6 @@
         <table class="table table-hover align-middle">
             <thead>
                 <tr>
-                    <th>Invoice No.</th>
                     <th class="d-none d-md-table-cell">Project</th>
                     <th class="d-none d-sm-table-cell">Date</th>
                     <th class="text-end fw-semibold">Total</th>
@@ -98,7 +97,6 @@
                         $displayTotal = (float) ($purchase->total_amount ?? $purchase->line_total);
                     @endphp
                     <tr>
-                        <td class="text-muted">{{ $purchase->invoice_reference ?? '—' }}</td>
                         <td class="d-none d-md-table-cell">
                             @if($purchase->project)
                                 {{ $purchase->project->name }}

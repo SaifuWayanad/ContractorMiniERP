@@ -5,31 +5,41 @@
 @php use App\Services\DashboardService; @endphp
 
 @section('content')
-<x-page-header :title="'Welcome, '.$user->firstName()" subtitle="Here's an overview of your projects and business activity." />
+<x-page-header :title="'Welcome, '.$user->firstName()" :subtitle="$isEmployeePortal ? 'Here\'s your personal activity overview.' : 'Here\'s an overview of your projects and business activity.'" />
 
-{{-- 6 KPI stat cards (BuildTrack layout: 3 per row) --}}
+{{-- KPI stat cards --}}
 <div class="row g-3 mb-4">
+    @if ($isEmployeePortal)
+        <div class="col-6 col-lg-4">
+            <x-stat-card label="My Projects" :value="number_format($summary['projects'])" icon="bi-building" accent="primary" :href="$user->can('projects.view') ? route('projects.index') : null" />
+        </div>
+        <div class="col-6 col-lg-4">
+            <x-stat-card label="My Works" :value="number_format($summary['works_count'])" icon="bi-list-check" accent="info" :href="$user->can('works.view') ? route('works.index') : null" />
+        </div>
+    @else
+        <div class="col-6 col-lg-4">
+            <x-stat-card label="Total Projects" :value="number_format($summary['projects'])" icon="bi-building" accent="primary" :href="$user->can('projects.view') ? route('projects.index') : null" />
+        </div>
+        <div class="col-6 col-lg-4">
+            <x-stat-card label="Total Customers" :value="number_format($summary['clients'])" icon="bi-people" accent="info" :href="$user->can('clients.view') ? route('clients.index') : null" />
+        </div>
+    @endif
     <div class="col-6 col-lg-4">
-        <x-stat-card label="Total Projects" :value="number_format($summary['projects'])" icon="bi-building" accent="primary" :href="$user->can('projects.view') ? route('projects.index') : null" />
+        <x-stat-card label="Purchase Value" :value="'₹'.number_format($summary['purchase_value'], 2)" icon="bi-cart3" accent="warning" :href="(!$isEmployeePortal && $user->can('purchases.view')) ? route('purchases.index') : null" />
     </div>
     <div class="col-6 col-lg-4">
-        <x-stat-card label="Total Customers" :value="number_format($summary['clients'])" icon="bi-people" accent="info" :href="$user->can('clients.view') ? route('clients.index') : null" />
+        <x-stat-card label="Expenses" :value="'₹'.number_format($summary['expenses'], 2)" icon="bi-receipt" accent="danger" :href="(!$isEmployeePortal && $user->can('expenses.view')) ? route('expenses.index') : null" />
     </div>
     <div class="col-6 col-lg-4">
-        <x-stat-card label="Purchase Value" :value="'₹'.number_format($summary['purchase_value'], 2)" icon="bi-cart3" accent="warning" :href="$user->can('purchases.view') ? route('purchases.index') : null" />
-    </div>
-    <div class="col-6 col-lg-4">
-        <x-stat-card label="Expenses" :value="'₹'.number_format($summary['expenses'], 2)" icon="bi-receipt" accent="danger" :href="$user->can('expenses.view') ? route('expenses.index') : null" />
-    </div>
-    <div class="col-6 col-lg-4">
-        <x-stat-card label="Collections" :value="'₹'.number_format($summary['collections'], 2)" icon="bi-cash-coin" accent="success" :href="$user->can('payments.view') ? route('payments.index') : null" />
+        <x-stat-card label="Collections" :value="'₹'.number_format($summary['collections'], 2)" icon="bi-cash-coin" accent="success" :href="(!$isEmployeePortal && $user->can('payments.view')) ? route('payments.index') : null" />
     </div>
     <div class="col-6 col-lg-4">
         <x-stat-card label="Work Expenses" :value="'₹'.number_format($summary['work_expenses'], 2)" icon="bi-hammer" accent="secondary" :href="$user->can('works.view') ? route('works.index') : null" />
     </div>
 </div>
 
-{{-- Meetings --}}
+@if (! $isEmployeePortal)
+{{-- Meetings (contractor users only) --}}
 <div class="row g-3 mb-4">
     <div class="col-12 col-xl-6">
         <x-card :flush="true" class="h-100 border-warning">
@@ -85,23 +95,26 @@
         </x-card>
     </div>
 </div>
+@endif
 
-{{-- Recent projects + Upcoming deadlines --}}
+{{-- Recent Projects + Deadlines / My Works --}}
 <div class="row g-3">
-    <div class="col-12 col-xl-8">
-        <x-table-card title="Recent Projects" class="h-100">
+    <div class="{{ $isEmployeePortal ? 'col-12 col-xl-7' : 'col-12 col-xl-8' }}">
+        <x-table-card :title="$isEmployeePortal ? 'My Projects' : 'Recent Projects'" class="h-100">
             <x-slot:headerActions>
                 @can('projects.view') <a href="{{ route('projects.index') }}" class="card-link">View All</a> @endcan
             </x-slot:headerActions>
             @if ($recentProjects->isEmpty())
-                <x-empty-state icon="bi-building" title="No projects yet" message="You haven't created any projects yet." />
+                <x-empty-state icon="bi-building" title="No projects yet" :message="$isEmployeePortal ? 'No projects have been assigned to you yet.' : 'You haven\'t created any projects yet.'" />
             @else
                 <table class="table table-hover align-middle">
                     <thead>
                         <tr>
                             <th>Project Name</th>
                             <th class="d-none d-md-table-cell">Customer</th>
-                            <th class="d-none d-sm-table-cell text-end">Budget</th>
+                            @unless ($isEmployeePortal)
+                                <th class="d-none d-sm-table-cell text-end">Budget</th>
+                            @endunless
                             <th class="d-none d-sm-table-cell">Added</th>
                             <th class="text-center">View</th>
                         </tr>
@@ -114,9 +127,11 @@
                                     <div class="cell-sub d-md-none">{{ $project->client?->name }}</div>
                                 </td>
                                 <td class="d-none d-md-table-cell">{{ $project->client?->name ?? '—' }}</td>
-                                <td class="d-none d-sm-table-cell text-end">
-                                    {{ $project->budget ? '₹'.number_format((float)$project->budget, 2) : '—' }}
-                                </td>
+                                @unless ($isEmployeePortal)
+                                    <td class="d-none d-sm-table-cell text-end">
+                                        {{ $project->budget ? '₹'.number_format((float)$project->budget, 2) : '—' }}
+                                    </td>
+                                @endunless
                                 <td class="d-none d-sm-table-cell text-nowrap">{{ $project->created_at->format('d M Y') }}</td>
                                 <td class="text-center">
                                     <a href="{{ route('projects.show', $project) }}" class="btn btn-icon btn-sm text-primary" aria-label="View {{ $project->name }}">
@@ -130,31 +145,79 @@
             @endif
         </x-table-card>
     </div>
-    <div class="col-12 col-xl-4">
-        <x-card title="Upcoming Deadlines" :flush="true" class="h-100">
-            <x-slot:actions><span class="small text-muted">Next {{ DashboardService::DEADLINE_WINDOW_DAYS }} days</span></x-slot:actions>
-            @if ($deadlines === [])
-                <div class="empty-inline"><i class="bi bi-calendar-check d-block fs-4 mb-1"></i>Nothing due in the next {{ DashboardService::DEADLINE_WINDOW_DAYS }} days.</div>
-            @else
-                <ul class="feed">
-                    @foreach ($deadlines as $deadline)
-                        <li class="feed-item align-items-center">
-                            <div class="deadline-date">
-                                <span class="day">{{ $deadline['date']->day }}</span>
-                                <span class="month">{{ $deadline['date']->format('M') }}</span>
-                            </div>
-                            <div class="flex-grow-1 min-w-0">
-                                <a href="{{ $deadline['url'] }}" class="row-title d-block text-truncate">{{ $deadline['title'] }}</a>
-                                <div class="feed-meta text-truncate">{{ $deadline['type'] }}{{ $deadline['subtitle'] ? ' · '.$deadline['subtitle'] : '' }}</div>
-                            </div>
-                            <span @class(['badge text-nowrap', 'badge-soft-danger' => $deadline['days'] < 0, 'badge-soft-warning' => $deadline['days'] >= 0 && $deadline['days'] <= 2, 'badge-soft-info' => $deadline['days'] > 2])>
-                                {{ DashboardService::dueLabel($deadline['days']) }}
-                            </span>
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
-        </x-card>
+    <div class="{{ $isEmployeePortal ? 'col-12 col-xl-5' : 'col-12 col-xl-4' }}">
+        @if ($isEmployeePortal)
+            {{-- My Works listing for employee portal --}}
+            <x-table-card title="My Works" class="h-100">
+                <x-slot:headerActions>
+                    @can('works.view') <a href="{{ route('works.index') }}" class="card-link">View All</a> @endcan
+                </x-slot:headerActions>
+                @if ($employeeWorks->isEmpty())
+                    <x-empty-state icon="bi-list-check" title="No works yet" message="No works have been assigned to you yet." />
+                @else
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th class="d-none d-sm-table-cell">Status</th>
+                                <th class="text-center">View</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($employeeWorks as $work)
+                                @php
+                                    $statusColor = match ($work->status?->value ?? '') {
+                                        'completed' => 'success',
+                                        'in_progress' => 'primary',
+                                        'on_hold' => 'warning',
+                                        default => 'secondary',
+                                    };
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <a href="{{ route('works.show', $work) }}" class="row-title">{{ $work->title }}</a>
+                                        <div class="cell-sub d-sm-none">{{ $work->project?->name }}</div>
+                                    </td>
+                                    <td class="d-none d-sm-table-cell">
+                                        <span class="badge badge-soft-{{ $statusColor }}">{{ $work->status?->label() ?? $work->status }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{{ route('works.show', $work) }}" class="btn btn-icon btn-sm text-primary" aria-label="View {{ $work->title }}">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            </x-table-card>
+        @else
+            <x-card title="Upcoming Deadlines" :flush="true" class="h-100">
+                <x-slot:actions><span class="small text-muted">Next {{ DashboardService::DEADLINE_WINDOW_DAYS }} days</span></x-slot:actions>
+                @if ($deadlines === [])
+                    <div class="empty-inline"><i class="bi bi-calendar-check d-block fs-4 mb-1"></i>Nothing due in the next {{ DashboardService::DEADLINE_WINDOW_DAYS }} days.</div>
+                @else
+                    <ul class="feed">
+                        @foreach ($deadlines as $deadline)
+                            <li class="feed-item align-items-center">
+                                <div class="deadline-date">
+                                    <span class="day">{{ $deadline['date']->day }}</span>
+                                    <span class="month">{{ $deadline['date']->format('M') }}</span>
+                                </div>
+                                <div class="flex-grow-1 min-w-0">
+                                    <a href="{{ $deadline['url'] }}" class="row-title d-block text-truncate">{{ $deadline['title'] }}</a>
+                                    <div class="feed-meta text-truncate">{{ $deadline['type'] }}{{ $deadline['subtitle'] ? ' · '.$deadline['subtitle'] : '' }}</div>
+                                </div>
+                                <span @class(['badge text-nowrap', 'badge-soft-danger' => $deadline['days'] < 0, 'badge-soft-warning' => $deadline['days'] >= 0 && $deadline['days'] <= 2, 'badge-soft-info' => $deadline['days'] > 2])>
+                                    {{ DashboardService::dueLabel($deadline['days']) }}
+                                </span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </x-card>
+        @endif
     </div>
 </div>
 @endsection

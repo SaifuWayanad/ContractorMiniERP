@@ -8,6 +8,6 @@
 <form method="post" action="{{ route('salary-payments.store') }}">
     @csrf
     @include('salary-payments._form')
-    <x-form.actions :back="route('salary-payments.index')" submit="Record Payment" />
+    <x-form.actions :cancel="route('salary-payments.index')" submit="Record Payment" />
 </form>
 @endsection

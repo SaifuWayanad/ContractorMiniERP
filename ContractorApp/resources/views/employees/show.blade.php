@@ -24,7 +24,7 @@
             <dl class="detail-list">
                 <div class="detail-row">
                     <dt>Status</dt>
-                    <dd><span class="badge {{ $employee->status->badgeClass() }}">{{ $employee->status->label() }}</span></dd>
+                    <dd><span class="badge {{ App\Models\EmployeeStatusOption::badgeClass($employee->status ?? '') }}">{{ $employee->status ?? '—' }}</span></dd>
                 </div>
                 @if($employee->employee_code)
                 <div class="detail-row">
@@ -52,7 +52,7 @@
                 @endif
                 <div class="detail-row">
                     <dt>Salary Type</dt>
-                    <dd>{{ $employee->salary_type?->label() }}</dd>
+                    <dd>{{ $employee->salary_type ?? '—' }}</dd>
                 </div>
                 <div class="detail-row">
                     <dt>Salary Amount</dt>
@@ -65,6 +65,24 @@
                     <div class="small">{{ $employee->notes }}</div>
                 </div>
             @endif
+            @can('update', $employee)
+            <div class="mt-3 pt-3 border-top">
+                <div class="text-muted small mb-2">Change Status</div>
+                @if($statusOptions->isNotEmpty())
+                <form method="post" action="{{ route('employees.update-status', $employee) }}" class="d-flex gap-2">
+                    @csrf @method('PATCH')
+                    <select name="status" class="form-select form-select-sm">
+                        @foreach($statusOptions as $s)
+                            <option value="{{ $s }}" @selected($employee->status === $s)>{{ $s }}</option>
+                        @endforeach
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Update</button>
+                </form>
+                @else
+                <div class="small text-muted">No status options yet. <a href="{{ route('employee-statuses.index') }}">Add status options</a></div>
+                @endif
+            </div>
+            @endcan
         </x-card>
 
         {{-- Login card --}}
@@ -75,7 +93,7 @@
                         <i class="bi bi-person-check-fill text-success"></i>
                     </div>
                     <div class="flex-grow-1 min-w-0">
-                        <div class="fw-semibold text-truncate">{{ $employee->user->email }}</div>
+                        <div class="fw-semibold text-truncate">{{ $employee->user->username }}</div>
                         <div class="text-muted small">
                             <span class="badge badge-soft-success">Active</span>
                             Contractor Staff
@@ -120,7 +138,7 @@
                 </li>
                 @endforeach
             </ul>
-            @can('view', App\Models\SalaryPayment::class)
+            @can('viewAny', App\Models\SalaryPayment::class)
                 <div class="mt-2"><a href="{{ route('salary-payments.index', ['employee_id' => $employee->id]) }}" class="card-link small">View All</a></div>
             @endcan
         </x-card>

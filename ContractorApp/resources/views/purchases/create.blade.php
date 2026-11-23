@@ -142,7 +142,7 @@
 (function () {
     var PROJECTS  = @json($projectsJson);   /* array of {id, name, number, client} */
     var PRODUCTS  = @json($productsJson);   /* array of {id, name, unit, rate}     */
-    var STORE_URL = '{{ route('products.quick-store') }}';
+    var STORE_URL = '{{ route('products.quick-store', [], false) }}';
     var CSRF      = document.querySelector('meta[name="csrf-token"]').content;
 
     /* Build lookup maps */

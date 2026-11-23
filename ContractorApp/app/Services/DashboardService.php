@@ -6,6 +6,7 @@ use App\Enums\ProjectStatus;
 use App\Enums\WorkStatus;
 use App\Models\ActivityLog;
 use App\Models\Client;
+use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Project;
 use App\Models\ProjectLocation;
@@ -235,6 +236,54 @@ class DashboardService
             ->orderBy('next_meeting_date')
             ->limit($limit)
             ->get(['id', 'client_id', 'purpose', 'location', 'next_meeting_date']);
+    }
+
+    /**
+     * Financial KPI summary for an employee portal user, scoped to their assigned works and projects.
+     *
+     * @return array{projects: int, works_count: int, purchase_value: float, expenses: float, work_expenses: float, collections: float}
+     */
+    public function employeeSummary(Employee $employee): array
+    {
+        $workIds    = $employee->works()->pluck('works.id')->all();
+        $projectIds = $employee->projects()->pluck('projects.id')->all();
+
+        return [
+            'projects'       => count($projectIds),
+            'works_count'    => count($workIds),
+            'purchase_value' => (float) Purchase::whereIn('project_id', $projectIds)->sum('line_total'),
+            'expenses'       => (float) Expense::whereIn('work_id', $workIds)->sum('amount'),
+            'work_expenses'  => (float) WorkPayment::whereIn('work_id', $workIds)->sum('amount'),
+            'collections'    => (float) ProjectPayment::whereIn('work_id', $workIds)->sum('amount_received'),
+        ];
+    }
+
+    /**
+     * Recent projects assigned to the employee (without budget).
+     *
+     * @return Collection<int, Project>
+     */
+    public function employeeRecentProjects(Employee $employee, int $limit = 5): Collection
+    {
+        return $employee->projects()
+            ->with('client:id,name')
+            ->latest('projects.created_at')
+            ->limit($limit)
+            ->get(['projects.id', 'projects.name', 'projects.status', 'projects.created_at', 'projects.client_id']);
+    }
+
+    /**
+     * Works assigned to the employee, most recent first.
+     *
+     * @return Collection<int, Work>
+     */
+    public function employeeWorks(Employee $employee, int $limit = 8): Collection
+    {
+        return $employee->works()
+            ->with('project:id,name')
+            ->latest('works.created_at')
+            ->limit($limit)
+            ->get(['works.id', 'works.title', 'works.status', 'works.due_date', 'works.priority', 'works.project_id']);
     }
 
     /**

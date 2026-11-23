@@ -117,7 +117,7 @@
 <script>
 (function () {
     var PRODUCTS  = @json($products);
-    var STORE_URL = '{{ route('products.quick-store') }}';
+    var STORE_URL = '{{ route('products.quick-store', [], false) }}';
     var CSRF      = document.querySelector('meta[name="csrf-token"]').content;
 
     /* Map id → {unit, rate} for auto-fill */

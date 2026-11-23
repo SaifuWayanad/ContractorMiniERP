@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Storage;
 #[Fillable([
     'company_name', 'contact_person', 'email', 'phone', 'alternate_phone',
     'address', 'city', 'state', 'country', 'postal_code',
-    'website', 'tax_number', 'license_number',
+    'website', 'tax_number', 'license_number', 'employee_portal_sections',
 ])]
 class Contractor extends Model
 {
@@ -34,11 +34,28 @@ class Contractor extends Model
      *
      * @return array<string, string>
      */
+    /** All sections the employee portal can expose, keyed by slug. */
+    public const PORTAL_SECTIONS = [
+        'dashboard'       => ['label' => 'Dashboard',       'icon' => 'bi-speedometer2',  'description' => 'Overview and summary stats'],
+        'projects'        => ['label' => 'Projects',        'icon' => 'bi-building',       'description' => 'View assigned projects'],
+        'works'           => ['label' => 'Works',           'icon' => 'bi-list-check',     'description' => 'View and update assigned works'],
+        'attendance'      => ['label' => 'Attendance',      'icon' => 'bi-calendar-check', 'description' => 'View own attendance records'],
+        'salary_payments' => ['label' => 'Salary Payments', 'icon' => 'bi-cash-coin',      'description' => 'View own salary payment history'],
+        'visits'          => ['label' => 'Visits',          'icon' => 'bi-geo-alt',        'description' => 'Log and view site visits'],
+    ];
+
     protected function casts(): array
     {
         return [
-            'status' => ContractorStatus::class,
+            'status'                   => ContractorStatus::class,
+            'employee_portal_sections' => 'array',
         ];
+    }
+
+    /** Returns the enabled portal section slugs (defaults to dashboard+projects+works). */
+    public function enabledPortalSections(): array
+    {
+        return $this->employee_portal_sections ?? ['dashboard', 'projects', 'works'];
     }
 
     /**

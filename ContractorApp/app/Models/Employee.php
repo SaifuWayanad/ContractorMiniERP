@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\EmployeeStatus;
-use App\Enums\SalaryType;
 use App\Models\Concerns\BelongsToContractor;
 use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -21,9 +19,7 @@ class Employee extends Model
     protected function casts(): array
     {
         return [
-            'status' => EmployeeStatus::class,
-            'salary_type' => SalaryType::class,
-            'joining_date' => 'date',
+            'joining_date'  => 'date',
             'salary_amount' => 'decimal:2',
         ];
     }
@@ -44,6 +40,12 @@ class Employee extends Model
     public function works(): BelongsToMany
     {
         return $this->belongsToMany(Work::class, 'work_employees');
+    }
+
+    /** @return BelongsToMany<\App\Models\Project, $this> */
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\Project::class, 'project_employees');
     }
 
     /** @return BelongsTo<\App\Models\User, $this> */

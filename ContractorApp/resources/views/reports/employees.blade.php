@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Employee Report')
+@section('title', 'Attendance Report')
 
 @section('content')
-<x-page-header title="Employee Report" subtitle="Attendance summary by employee and month." />
+<x-page-header title="Attendance Report" subtitle="Attendance summary by employee and month." />
 
 <form method="get" action="{{ route('reports.employees') }}" class="mb-4" data-auto-filter>
     <div class="row g-2 align-items-end">
@@ -60,7 +60,6 @@
                     <th class="text-center text-warning">Half Day</th>
                     <th class="text-center text-info">Leave</th>
                     <th class="text-center">Total</th>
-                    <th class="text-end"><span class="visually-hidden">Actions</span></th>
                 </tr>
             </thead>
             <tbody>
@@ -76,9 +75,6 @@
                     <td class="text-center"><span class="badge badge-soft-warning">{{ $row['half_day'] }}</span></td>
                     <td class="text-center"><span class="badge badge-soft-info">{{ $row['leave'] }}</span></td>
                     <td class="text-center fw-semibold">{{ $row['total_days'] }}</td>
-                    <td class="text-end">
-                        <a href="{{ route('attendance.index', ['employee_id' => $row['employee']->id]) }}" class="btn btn-icon btn-sm text-primary" title="View attendance"><i class="bi bi-calendar-week"></i></a>
-                    </td>
                 </tr>
                 @endforeach
             </tbody>
@@ -103,15 +99,24 @@
 <script>
 (function () {
     var form = document.querySelector('form[data-auto-filter]');
-    function bindCs(wrapperId, inputId) {
-        var cs = new CustomSelect(wrapperId);
-        var input = document.getElementById(inputId);
-        var orig = cs._select.bind(cs);
-        cs._select = function(v, l) { orig(v, l); input.value = v; form.submit(); };
-        if (input.value) cs._select(input.value, input.value);
-    }
-    bindCs('erMonthWrapper', 'erMonthInput');
-    bindCs('erEmpWrapper', 'erEmpInput');
+
+    // Month CS — init with the display label, not the raw value
+    (function () {
+        var cs    = new CustomSelect('erMonthWrapper');
+        var input = document.getElementById('erMonthInput');
+        var orig  = cs._select.bind(cs);
+        cs._select = function (v, l) { orig(v, l); input.value = v; form.submit(); };
+        if (input.value) orig(input.value, {{ json_encode($months[$filters['month']] ?? '') }});
+    })();
+
+    // Employee CS
+    (function () {
+        var cs    = new CustomSelect('erEmpWrapper');
+        var input = document.getElementById('erEmpInput');
+        var orig  = cs._select.bind(cs);
+        cs._select = function (v, l) { orig(v, l); input.value = v; form.submit(); };
+        if (input.value) orig(input.value, {{ json_encode($allEmployees[$filters['employee_id']] ?? '') }});
+    })();
 })();
 </script>
 @endpush

@@ -144,7 +144,7 @@
     var PROJECTS       = @json($projectsJson);
     var PRODUCTS       = @json($productsJson);
     var EXISTING_ITEMS = @json($existingItems);
-    var STORE_URL      = '{{ route('products.quick-store') }}';
+    var STORE_URL      = '{{ route('products.quick-store', [], false) }}';
     var CSRF           = document.querySelector('meta[name="csrf-token"]').content;
 
     var projMap = {};

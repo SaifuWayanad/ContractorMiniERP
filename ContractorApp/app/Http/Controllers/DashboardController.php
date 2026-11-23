@@ -21,18 +21,40 @@ class DashboardController extends Controller
         $contractorId = $user->contractor_id;
         $period = ReportingPeriod::fromRequest($request);
 
+        $employee = $user->linkedEmployee();
+
+        if ($employee !== null) {
+            return view('dashboard', [
+                'user'             => $user,
+                'period'           => $period,
+                'isEmployeePortal' => true,
+                'summary'          => $this->dashboard->employeeSummary($employee),
+                'recentProjects'   => $this->dashboard->employeeRecentProjects($employee),
+                'employeeWorks'    => $this->dashboard->employeeWorks($employee),
+                'deadlines'        => [],
+                'todaysMeetings'   => collect(),
+                'upcomingMeetings' => collect(),
+                'recentClients'    => collect(),
+                'activity'         => collect(),
+                'statusDistribution' => [],
+                'trend'            => [],
+            ]);
+        }
+
         return view('dashboard', [
-            'user' => $user,
-            'period' => $period,
-            'summary' => $this->dashboard->summary($contractorId, $period),
+            'user'               => $user,
+            'period'             => $period,
+            'isEmployeePortal'   => false,
+            'summary'            => $this->dashboard->summary($contractorId, $period),
             'statusDistribution' => $this->dashboard->projectStatusDistribution($contractorId),
-            'trend' => $this->dashboard->projectTrend($contractorId, $request->string('trend', '6m')->value()),
-            'recentProjects' => $this->dashboard->recentProjects($contractorId),
-            'recentClients' => $this->dashboard->recentClients($contractorId),
-            'deadlines' => $this->dashboard->upcomingDeadlines($contractorId),
-            'todaysMeetings' => $this->dashboard->todaysMeetings($contractorId),
-            'upcomingMeetings' => $this->dashboard->upcomingMeetings($contractorId),
-            'activity' => $user->can('activity.view') ? $this->dashboard->recentActivity($contractorId) : collect(),
+            'trend'              => $this->dashboard->projectTrend($contractorId, $request->string('trend', '6m')->value()),
+            'recentProjects'     => $this->dashboard->recentProjects($contractorId),
+            'recentClients'      => $this->dashboard->recentClients($contractorId),
+            'deadlines'          => $this->dashboard->upcomingDeadlines($contractorId),
+            'todaysMeetings'     => $this->dashboard->todaysMeetings($contractorId),
+            'upcomingMeetings'   => $this->dashboard->upcomingMeetings($contractorId),
+            'activity'           => $user->can('activity.view') ? $this->dashboard->recentActivity($contractorId) : collect(),
+            'employeeWorks'      => collect(),
         ]);
     }
 

@@ -125,7 +125,7 @@
     var EXISTING_ITEMS  = @json($existingItems);
     var IS_MULTI        = @json($isMultiProject);
     var PROJECTS        = @json($projectsJson);
-    var STORE_URL       = '{{ route('products.quick-store') }}';
+    var STORE_URL       = '{{ route('products.quick-store', [], false) }}';
     var CSRF            = document.querySelector('meta[name="csrf-token"]').content;
 
     var prodMap = {};

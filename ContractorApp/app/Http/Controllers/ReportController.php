@@ -259,6 +259,7 @@ class ReportController extends Controller
         if (! $categoryFilter || strtolower($categoryFilter) === 'work') {
             $workRows = WorkPayment::query()
                 ->with(['work:id,title,project_id,created_at', 'work.project:id,name,project_number'])
+                ->whereHas('work')   // enforces contractor scope via Work's global scope
                 ->when($projectId, fn ($q) => $q->whereHas('work', fn ($w) => $w->where('project_id', $projectId)))
                 ->when($dateFrom, fn ($q) => $q->whereHas('work', fn ($w) => $w->whereDate('created_at', '>=', $dateFrom)))
                 ->when($dateTo, fn ($q) => $q->whereHas('work', fn ($w) => $w->whereDate('created_at', '<=', $dateTo)))
@@ -289,6 +290,7 @@ class ReportController extends Controller
         return view('reports.expenses', [
             'rows'           => $rows,
             'grandTotal'     => $rows->sum('amount'),
+            'officeTotal'    => $expenseRows->filter(fn ($r) => $r['project'] === null)->sum('amount'),
             'period'         => $period,
             'dateFrom'       => $dateFrom,
             'dateTo'         => $dateTo,
@@ -436,6 +438,65 @@ class ReportController extends Controller
             'allEmployees' => $allEmployees,
             'months'       => $months,
             'selectedMonth' => $filters['month'],
+        ]);
+    }
+
+    public function employeePerformance(Request $request): View
+    {
+        $this->authorize('reports.view');
+
+        $filters = [
+            'employee_id' => $request->integer('employee_id') ?: null,
+        ];
+
+        $today = now()->startOfDay();
+
+        $employees = Employee::orderBy('name')
+            ->when($filters['employee_id'], fn ($q, $eid) => $q->where('id', $eid))
+            ->get(['id', 'name', 'designation', 'status']);
+
+        $employeeIds = $employees->pluck('id');
+
+        $works = \App\Models\Work::whereHas('employees', fn ($q) => $q->whereIn('employees.id', $employeeIds))
+            ->with(['employees:id'])
+            ->get(['id', 'title', 'status', 'due_date', 'priority']);
+
+        $summary = $employees->map(function (Employee $emp) use ($works, $today): array {
+            $empWorks = $works->filter(fn ($w) => $w->employees->contains('id', $emp->id));
+
+            $total      = $empWorks->count();
+            $completed  = $empWorks->where('status', \App\Enums\WorkStatus::Completed->value)->count();
+            $inProgress = $empWorks->where('status', \App\Enums\WorkStatus::InProgress->value)->count();
+            $pending    = $empWorks->where('status', \App\Enums\WorkStatus::Pending->value)->count();
+            $onHold     = $empWorks->where('status', \App\Enums\WorkStatus::OnHold->value)->count();
+            $overdue    = $empWorks
+                ->filter(fn ($w) => $w->due_date && $w->due_date < $today && !in_array($w->status, [\App\Enums\WorkStatus::Completed->value, \App\Enums\WorkStatus::Cancelled->value]))
+                ->count();
+            $dueToday   = $empWorks
+                ->filter(fn ($w) => $w->due_date && $w->due_date->isSameDay($today) && !in_array($w->status, [\App\Enums\WorkStatus::Completed->value, \App\Enums\WorkStatus::Cancelled->value]))
+                ->count();
+
+            $completionRate = $total > 0 ? round(($completed / $total) * 100) : 0;
+
+            return [
+                'employee'        => $emp,
+                'total'           => $total,
+                'completed'       => $completed,
+                'in_progress'     => $inProgress,
+                'pending'         => $pending,
+                'on_hold'         => $onHold,
+                'overdue'         => $overdue,
+                'due_today'       => $dueToday,
+                'completion_rate' => $completionRate,
+            ];
+        })->values();
+
+        $allEmployees = Employee::orderBy('name')->pluck('name', 'id');
+
+        return view('reports.employee-performance', [
+            'summary'      => $summary,
+            'filters'      => $filters,
+            'allEmployees' => $allEmployees,
         ]);
     }
 }

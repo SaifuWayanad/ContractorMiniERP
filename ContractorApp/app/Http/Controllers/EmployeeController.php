@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\EmployeeStatus;
-use App\Enums\SalaryType;
 use App\Http\Requests\EmployeeRequest;
 use App\Models\Employee;
+use App\Models\EmployeeDesignation;
+use App\Models\EmployeeSalaryType;
+use App\Models\EmployeeStatusOption;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ class EmployeeController extends Controller
 
         $filters = [
             'search' => $request->string('search')->trim()->value(),
-            'status' => $request->string('status')->value() ?: null,
+            'status' => $request->string('status')->trim()->value() ?: null,
         ];
 
         $employees = Employee::query()
@@ -36,9 +37,9 @@ class EmployeeController extends Controller
             ->withQueryString();
 
         return view('employees.index', [
-            'employees'  => $employees,
-            'filters'    => $filters,
-            'statusOptions' => EmployeeStatus::options(),
+            'employees'     => $employees,
+            'filters'       => $filters,
+            'statusOptions' => EmployeeStatusOption::orderBy('name')->pluck('name'),
         ]);
     }
 
@@ -53,7 +54,7 @@ class EmployeeController extends Controller
     {
         $this->authorize('create', Employee::class);
 
-        Employee::create($request->validated());
+        Employee::create(array_merge($request->validated(), ['status' => 'Active']));
 
         return to_route('employees.index')->with('toast', 'Employee added.');
     }
@@ -64,7 +65,24 @@ class EmployeeController extends Controller
 
         $employee->load(['attendances' => fn ($q) => $q->orderByDesc('date')->limit(10), 'salaryPayments' => fn ($q) => $q->orderByDesc('payment_date')->limit(6), 'works' => fn ($q) => $q->with('project:id,name')->orderByDesc('id')->limit(5), 'user']);
 
-        return view('employees.show', compact('employee'));
+        return view('employees.show', [
+            'employee'      => $employee,
+            'statusOptions' => EmployeeStatusOption::orderBy('name')->pluck('name'),
+        ]);
+    }
+
+    public function updateStatus(Request $request, Employee $employee): RedirectResponse
+    {
+        $this->authorize('update', $employee);
+
+        $validated = $request->validate([
+            'status' => ['required', 'string', 'max:100'],
+        ]);
+
+        $employee->status = $validated['status'];
+        $employee->save();
+
+        return back()->with('toast', 'Status updated.');
     }
 
     public function edit(Employee $employee): View
@@ -96,9 +114,9 @@ class EmployeeController extends Controller
     private function formData(Employee $employee): array
     {
         return [
-            'employee'      => $employee,
-            'salaryTypes'   => SalaryType::options(),
-            'statusOptions' => EmployeeStatus::options(),
+            'employee'     => $employee,
+            'salaryTypes'  => EmployeeSalaryType::orderBy('name')->pluck('name'),
+            'designations' => EmployeeDesignation::orderBy('name')->pluck('name'),
         ];
     }
 }

@@ -37,17 +37,17 @@
             <strong class="small text-uppercase tracking-wide text-muted">{{ $parsedDate->format('l, d M Y') }}</strong>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-sm btn-outline-success" id="markAllPresent">All Present</button>
-                <button type="button" class="btn btn-sm btn-outline-danger" id="markAllAbsent">All Absent</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="markAllAbsent">All Leave</button>
             </div>
         </div>
-        <div class="table-responsive">
+        <div style="overflow:visible">
             <table class="table table-hover align-middle mb-0" style="border-collapse:separate;border-spacing:0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width:35%">Employee</th>
-                        <th style="width:25%">Morning</th>
-                        <th style="width:25%">Evening</th>
-                        <th style="width:15%">Notes</th>
+                        <th style="width:50%">Employee</th>
+                        <th style="width:18%">Morning</th>
+                        <th style="width:18%">Evening</th>
+                        <th style="width:14%">Notes</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -140,7 +140,21 @@
     }
 
     document.getElementById('markAllPresent').addEventListener('click', function() { bulkMark('present', 'Present'); });
-    document.getElementById('markAllAbsent').addEventListener('click', function() { bulkMark('absent', 'Absent'); });
+    document.getElementById('markAllAbsent').addEventListener('click', function() { bulkMark('leave', 'Leave'); });
+
+    // Fix panels escaping overflow-hidden ancestors by switching to fixed positioning on open
+    document.querySelectorAll('.cs-wrapper').forEach(function(wrapper) {
+        var panel = wrapper.querySelector('.cs-panel');
+        if (!panel) return;
+        new MutationObserver(function() {
+            if (wrapper.classList.contains('open')) {
+                var rect = wrapper.getBoundingClientRect();
+                panel.style.cssText = 'position:fixed!important;top:'+(rect.bottom+2)+'px;left:'+rect.left+'px;right:auto;width:'+Math.max(rect.width,160)+'px;z-index:9999';
+            } else {
+                panel.style.cssText = '';
+            }
+        }).observe(wrapper, { attributes: true, attributeFilter: ['class'] });
+    });
 })();
 </script>
 @endpush

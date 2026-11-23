@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['project_id', 'payment_date', 'amount_received', 'payment_method', 'receipt_reference', 'notes'])]
+#[Fillable(['project_id', 'work_id', 'payment_date', 'amount_received', 'payment_method', 'receipt_reference', 'notes'])]
 class ProjectPayment extends Model
 {
     use BelongsToContractor, LogsActivity, SoftDeletes;

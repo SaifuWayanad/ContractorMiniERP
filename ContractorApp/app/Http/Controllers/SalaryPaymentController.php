@@ -6,6 +6,8 @@ use App\Enums\SalaryPaymentStatus;
 use App\Http\Requests\SalaryPaymentRequest;
 use App\Models\Employee;
 use App\Models\SalaryPayment;
+use App\Models\Expense;
+use App\Models\SalaryPaymentMethod;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,9 +19,11 @@ class SalaryPaymentController extends Controller
     {
         $this->authorize('viewAny', SalaryPayment::class);
 
+        $linkedEmployee = $request->user()->linkedEmployee();
+
         $filters = [
             'search'      => $request->string('search')->trim()->value(),
-            'employee_id' => $request->integer('employee_id') ?: null,
+            'employee_id' => $linkedEmployee ? $linkedEmployee->id : ($request->integer('employee_id') ?: null),
             'month'       => $request->string('month')->value() ?: null,
         ];
 
@@ -40,14 +44,107 @@ class SalaryPaymentController extends Controller
             ->paginate($this->perPage())
             ->withQueryString();
 
-        $employees = Employee::orderBy('name')->pluck('name', 'id');
+        $employees = $linkedEmployee
+            ? collect([$linkedEmployee->id => $linkedEmployee->name])
+            : Employee::orderBy('name')->pluck('name', 'id');
 
         return view('salary-payments.index', [
-            'payments'   => $payments,
-            'filters'    => $filters,
-            'totalPaid'  => $totalPaid,
-            'employees'  => $employees,
+            'payments'        => $payments,
+            'filters'         => $filters,
+            'totalPaid'       => $totalPaid,
+            'employees'       => $employees,
+            'isEmployeePortal' => $linkedEmployee !== null,
         ]);
+    }
+
+    public function bulk(Request $request): View
+    {
+        $this->authorize('create', SalaryPayment::class);
+
+        $month = $request->integer('month') ?: now()->month;
+        $year  = $request->integer('year') ?: now()->year;
+
+        $employees = Employee::orderBy('name')->get(['id', 'name', 'designation', 'salary_type', 'salary_amount']);
+
+        $existing = SalaryPayment::where('period_month', $month)
+            ->where('period_year', $year)
+            ->get()
+            ->keyBy('employee_id');
+
+        $paymentMethods = SalaryPaymentMethod::orderBy('name')->pluck('name');
+        $statuses       = SalaryPaymentStatus::options();
+        $months         = array_combine(range(1, 12), ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']);
+
+        return view('salary-payments.bulk', compact('employees', 'existing', 'month', 'year', 'paymentMethods', 'statuses', 'months'));
+    }
+
+    public function saveBulk(Request $request): RedirectResponse
+    {
+        $this->authorize('create', SalaryPayment::class);
+
+        $validated = $request->validate([
+            'month'          => ['required', 'integer', 'min:1', 'max:12'],
+            'year'           => ['required', 'integer', 'min:2000', 'max:2100'],
+            'payment_date'   => ['required', 'date'],
+            'payment_method' => ['nullable', 'string', 'max:100'],
+            'status'         => ['required', 'string'],
+            'rows'           => ['nullable', 'array'],
+            'rows.*.include' => ['nullable'],
+            'rows.*.amount'  => ['nullable', 'numeric', 'min:0'],
+            'rows.*.notes'   => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $month  = $validated['month'];
+        $year   = $validated['year'];
+        $saved  = 0;
+        $totalAmount = 0;
+
+        foreach ($validated['rows'] ?? [] as $employeeId => $data) {
+            if (empty($data['include'])) {
+                continue;
+            }
+
+            $amount = (float) ($data['amount'] ?? 0);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            SalaryPayment::updateOrCreate(
+                ['employee_id' => (int) $employeeId, 'period_month' => $month, 'period_year' => $year],
+                [
+                    'amount'         => $amount,
+                    'payment_date'   => $validated['payment_date'],
+                    'payment_method' => $validated['payment_method'] ?: null,
+                    'status'         => $validated['status'],
+                    'notes'          => $data['notes'] ?: null,
+                ]
+            );
+            $saved++;
+            $totalAmount += $amount;
+        }
+
+        // Create / update a consolidated expense entry for this payroll run
+        if ($saved > 0) {
+            $monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            $monthName  = $monthNames[$month - 1];
+            $ref        = "PAYROLL-{$year}-{$month}";
+
+            Expense::updateOrCreate(
+                ['reference_number' => $ref],
+                [
+                    'heading'        => "Monthly Pay — {$monthName} {$year}",
+                    'category'       => 'Salary & Wages',
+                    'is_work_related'=> false,
+                    'expense_date'   => $validated['payment_date'],
+                    'amount'         => $totalAmount,
+                    'payment_method' => $validated['payment_method'] ?: null,
+                    'notes'          => "{$saved} employee(s) — {$monthName} {$year} payroll",
+                    'project_id'     => null,
+                ]
+            );
+        }
+
+        return back()->with('toast', "Saved {$saved} salary payment(s).");
     }
 
     public function create(Request $request): View
@@ -101,11 +198,11 @@ class SalaryPaymentController extends Controller
     private function formData(SalaryPayment $payment): array
     {
         return [
-            'payment'    => $payment,
-            'employees'  => Employee::where('status', 'active')->orderBy('name')->pluck('name', 'id'),
-            'statuses'   => SalaryPaymentStatus::options(),
-            'paymentMethods' => collect(['Cash', 'Bank Transfer', 'UPI', 'Cheque']),
-            'months'     => array_combine(range(1, 12), ['January','February','March','April','May','June','July','August','September','October','November','December']),
+            'payment'        => $payment,
+            'employees'      => Employee::orderBy('name')->pluck('name', 'id'),
+            'statuses'       => SalaryPaymentStatus::options(),
+            'paymentMethods' => SalaryPaymentMethod::orderBy('name')->pluck('name'),
+            'months'         => array_combine(range(1, 12), ['January','February','March','April','May','June','July','August','September','October','November','December']),
         ];
     }
 }

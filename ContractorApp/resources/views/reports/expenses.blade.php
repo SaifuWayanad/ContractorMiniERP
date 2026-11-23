@@ -13,19 +13,25 @@ $periodLabels = ['today'=>'Today','this_week'=>'This Week','this_month'=>'This M
 
 {{-- Summary Cards --}}
 <div class="row g-3 mb-4">
-    <div class="col-12 col-md-4">
+    <div class="col-12 col-sm-6 col-md-3">
         <div class="kpi-card kpi-green h-100">
             <div class="kpi-label"><i class="bi bi-graph-down-arrow me-1"></i>Total Expenses</div>
             <div class="kpi-value">{{ Number::currency((float) $grandTotal, 'INR', 'en_IN', 0) }}</div>
         </div>
     </div>
-    <div class="col-6 col-md-4">
+    <div class="col-12 col-sm-6 col-md-3">
+        <div class="kpi-card kpi-orange h-100">
+            <div class="kpi-label"><i class="bi bi-house me-1"></i>Office Expenses</div>
+            <div class="kpi-value">{{ Number::currency((float) $officeTotal, 'INR', 'en_IN', 0) }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
         <div class="kpi-card kpi-blue h-100">
             <div class="kpi-label"><i class="bi bi-receipt me-1"></i>Transactions</div>
             <div class="kpi-value">{{ $rows->count() }}</div>
         </div>
     </div>
-    <div class="col-6 col-md-4">
+    <div class="col-6 col-md-3">
         <div class="kpi-card kpi-yellow h-100">
             <div class="kpi-label"><i class="bi bi-building me-1"></i>Projects</div>
             <div class="kpi-value">{{ $rows->pluck('project')->filter()->pluck('id')->unique()->count() }}</div>
@@ -144,9 +150,13 @@ $periodLabels = ['today'=>'Today','this_week'=>'This Week','this_month'=>'This M
                         {{ $row['date'] ? \Carbon\Carbon::parse($row['date'])->format('d M Y') : '—' }}
                     </td>
                     <td style="padding:.75rem 1rem;font-size:.875rem;color:#374151">
-                        {{ $row['project']?->name ?? '—' }}
-                        @if($row['project']?->project_number)
-                            <span style="color:#9ca3af;font-size:.78rem;margin-left:.25rem">#{{ $row['project']->project_number }}</span>
+                        @if($row['project'])
+                            {{ $row['project']->name }}
+                            @if($row['project']->project_number)
+                                <span style="color:#9ca3af;font-size:.78rem;margin-left:.25rem">#{{ $row['project']->project_number }}</span>
+                            @endif
+                        @else
+                            <span class="text-muted">Office</span>
                         @endif
                     </td>
                     <td style="padding:.75rem 1rem;font-size:.875rem;color:#374151">

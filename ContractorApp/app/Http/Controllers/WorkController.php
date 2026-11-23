@@ -8,11 +8,10 @@ use App\Enums\WorkStatus;
 use App\Http\Requests\WorkRequest;
 use App\Models\Client;
 use App\Models\Employee;
-use App\Models\Expense;
 use App\Models\Project;
+use App\Models\SalaryPaymentMethod;
 use App\Models\User;
 use App\Models\Work;
-use App\Models\WorkPayment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -59,6 +58,10 @@ class WorkController extends Controller
                 'month' => $query->whereBetween('due_date', [$today, $today->copy()->addDays(30)]),
                 'none' => $query->whereNull('due_date'),
             })
+            ->when($request->user()->isEmployeePortal(), function (Builder $query) use ($request): void {
+                $employee = $request->user()->linkedEmployee();
+                $query->whereHas('employees', fn (Builder $q) => $q->where('employees.id', $employee->id));
+            })
             ->orderByRaw('case when status in (?, ?, ?) then 0 else 1 end', WorkStatus::open())
             ->orderByRaw('due_date is null')
             ->orderBy('due_date')
@@ -94,10 +97,9 @@ class WorkController extends Controller
     {
         $this->authorize('create', Work::class);
 
-        $work = new Work($request->safe()->except(['project_id', 'assigned_to', 'from', 'from_project_id', 'payments']));
+        $work = new Work($request->safe()->except(['project_id', 'assigned_to', 'from', 'from_project_id']));
         $this->assignRelations($work, $request);
         $work->save();
-        $this->syncPayments($work, $request->input('payments', []));
         $work->employees()->sync($request->input('employee_ids', []));
 
         if ($request->input('from') === 'project') {
@@ -111,7 +113,25 @@ class WorkController extends Controller
     {
         $this->authorize('view', $work);
 
-        return view('works.show', ['work' => $work->load(['project', 'client', 'assignee', 'payments', 'employees'])]);
+        $user = auth()->user();
+        if ($user->isEmployeePortal()) {
+            $employee = $user->linkedEmployee();
+            abort_unless(
+                $employee && $work->employees()->where('employees.id', $employee->id)->exists(),
+                403
+            );
+        }
+
+        return view('works.show', [
+            'work' => $work->load([
+                'project', 'client', 'assignee', 'employees',
+                'dailyWorkers'  => fn ($q) => $q->orderByDesc('date'),
+                'expenses'      => fn ($q) => $q->orderByDesc('expense_date'),
+                'workers'       => fn ($q) => $q->orderBy('name'),
+                'collections'   => fn ($q) => $q->orderByDesc('payment_date'),
+            ]),
+            'paymentMethods' => SalaryPaymentMethod::orderBy('name')->pluck('name'),
+        ]);
     }
 
     public function edit(Work $work): View
@@ -125,10 +145,9 @@ class WorkController extends Controller
     {
         $this->authorize('update', $work);
 
-        $work->fill($request->safe()->except(['project_id', 'assigned_to', 'from', 'from_project_id', 'payments']));
+        $work->fill($request->safe()->except(['project_id', 'assigned_to', 'from', 'from_project_id']));
         $this->assignRelations($work, $request);
         $work->save();
-        $this->syncPayments($work, $request->input('payments', []));
         $work->employees()->sync($request->input('employee_ids', []));
 
         if ($request->input('from') === 'project') {
@@ -147,25 +166,6 @@ class WorkController extends Controller
         return to_route('works.index')->with('toast', "Work \"{$work->title}\" deleted.");
     }
 
-    private function syncPayments(Work $work, array $payments): void
-    {
-        $work->payments()->delete();
-
-        $rows = collect($payments)
-            ->filter(fn ($p) => isset($p['amount']) && (float) $p['amount'] > 0)
-            ->map(fn ($p) => [
-                'payment_method' => filled($p['payment_method'] ?? '') ? $p['payment_method'] : null,
-                'amount'         => (float) $p['amount'],
-            ]);
-
-        if ($rows->isNotEmpty()) {
-            $work->payments()->createMany($rows);
-        }
-
-        $total = $rows->sum('amount');
-        $work->updateQuietly(['amount' => $total > 0 ? $total : null]);
-    }
-
     private function assignRelations(Work $work, WorkRequest $request): void
     {
         $project = Project::findOrFail($request->integer('project_id'));
@@ -179,24 +179,18 @@ class WorkController extends Controller
      */
     private function formData(Work $work): array
     {
-        $expenseMethods = Expense::whereNotNull('payment_method')->where('payment_method', '!=', '')->distinct()->pluck('payment_method');
-        $workPmMethods  = WorkPayment::whereNotNull('payment_method')->where('payment_method', '!=', '')->distinct()->pluck('payment_method');
-        $paymentMethods = $expenseMethods->concat($workPmMethods)->unique()->sort()->values();
-
         return [
-            'work'               => $work,
-            'existingPayments'   => $work->exists ? $work->payments()->get(['payment_method', 'amount']) : collect(),
-            'projects'           => Project::query()
+            'work'                => $work,
+            'projects'            => Project::query()
                 ->where(fn (Builder $query) => $query->open()->orWhere('id', $work->project_id))
                 ->orderBy('name')
                 ->pluck('name', 'id'),
-            'assignees'          => User::query()
+            'assignees'           => User::query()
                 ->where('contractor_id', auth()->user()->contractor_id)
                 ->where(fn (Builder $query) => $query->where('status', UserStatus::Active)->orWhere('id', $work->assigned_to))
                 ->orderBy('name')
                 ->pluck('name', 'id'),
-            'paymentMethods'     => $paymentMethods,
-            'allEmployees'       => Employee::where('status', 'active')->orderBy('name')->get(['id', 'name', 'designation']),
+            'allEmployees'        => Employee::where('status', 'active')->orderBy('name')->get(['id', 'name', 'designation']),
             'selectedEmployeeIds' => $work->exists ? $work->employees()->pluck('employees.id')->toArray() : [],
         ];
     }

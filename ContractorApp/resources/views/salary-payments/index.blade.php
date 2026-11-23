@@ -6,7 +6,7 @@
 <x-page-header title="Salary Payments" subtitle="Track employee salary payments.">
     <x-slot:actions>
         @can('create', App\Models\SalaryPayment::class)
-            <a href="{{ route('salary-payments.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Record Payment</a>
+            <a href="{{ route('salary-payments.bulk') }}" class="btn btn-primary btn-sm"><i class="bi bi-people-fill me-1"></i>Process Payroll</a>
         @endcan
     </x-slot:actions>
 </x-page-header>
@@ -21,8 +21,20 @@
     </div>
 </div>
 
-<form method="get" action="{{ route('salary-payments.index') }}" class="mb-4" data-auto-filter>
+@php
+    $monthOptions = [];
+    for ($i = 23; $i >= 0; $i--) {
+        $mo = now()->startOfMonth()->subMonths($i);
+        $monthOptions[$mo->format('Y-m')] = $mo->format('F Y');
+    }
+    $selectedMonthLabel = $filters['month'] ? ($monthOptions[$filters['month']] ?? $filters['month']) : '';
+@endphp
+<form method="get" action="{{ route('salary-payments.index') }}" class="mb-4" id="spFilterForm">
+    @if ($isEmployeePortal)
+        <input type="hidden" name="employee_id" value="{{ $filters['employee_id'] }}">
+    @endif
     <div class="row g-2 align-items-end">
+        @unless ($isEmployeePortal)
         <div class="col-sm-6 col-md-3">
             <input type="text" class="form-control form-control-sm" name="search" value="{{ $filters['search'] }}" placeholder="Search employee…" style="min-height:calc(1.5em + 0.5rem + 2px)" />
         </div>
@@ -44,13 +56,26 @@
                 <input type="hidden" name="employee_id" id="spEmpInput" value="{{ $filters['employee_id'] ?? '' }}">
             </div>
         </div>
+        @endunless
         <div class="col-sm-6 col-md-3">
-            <input type="month" class="form-control form-control-sm" name="month" value="{{ $filters['month'] }}" style="min-height:calc(1.5em + 0.5rem + 2px)" />
+            <div class="cs-wrapper cs-sm" id="spMonthWrapper">
+                <div class="cs-trigger">
+                    <span class="cs-value {{ $filters['month'] ? '' : 'cs-placeholder' }}">{{ $selectedMonthLabel ?: 'All Months' }}</span>
+                    <i class="bi bi-chevron-down cs-arrow"></i>
+                </div>
+                <div class="cs-panel">
+                    <div class="cs-search-wrap"><i class="bi bi-search"></i><input type="text" class="cs-search" placeholder="Search…"></div>
+                    <div class="cs-list">
+                        <div class="cs-item" data-value="">All Months</div>
+                        @foreach(array_reverse($monthOptions, true) as $val => $label)
+                            <div class="cs-item" data-value="{{ $val }}">{{ $label }}</div>
+                        @endforeach
+                    </div>
+                </div>
+                <input type="hidden" name="month" id="spMonthInput" value="{{ $filters['month'] ?? '' }}">
+            </div>
         </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-secondary btn-sm">View</button>
-        </div>
-        @if($filters['search'] || $filters['employee_id'] || $filters['month'])
+        @if(! $isEmployeePortal && ($filters['search'] || $filters['employee_id'] || $filters['month']))
             <div class="col-auto">
                 <a href="{{ route('salary-payments.index') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
             </div>
@@ -62,7 +87,7 @@
     <div class="card">
         <x-empty-state icon="bi-cash-stack" title="No salary payments yet" message="Record salary payments to track employee compensation.">
             @can('create', App\Models\SalaryPayment::class)
-                <a href="{{ route('salary-payments.create') }}" class="btn btn-primary btn-sm">Record Payment</a>
+                <a href="{{ route('salary-payments.bulk') }}" class="btn btn-primary btn-sm">Process Payroll</a>
             @endcan
         </x-empty-state>
     </div>
@@ -115,11 +140,20 @@
 @push('scripts')
 <script>
 (function () {
-    var form = document.querySelector('form[data-auto-filter]');
-    var cs = new CustomSelect('spEmpWrapper');
-    var input = document.getElementById('spEmpInput');
-    var orig = cs._select.bind(cs);
-    cs._select = function(v, l) { orig(v, l); input.value = v; form.submit(); };
+    var form = document.getElementById('spFilterForm');
+
+    @unless ($isEmployeePortal)
+    var empCs   = new CustomSelect('spEmpWrapper');
+    var empInp  = document.getElementById('spEmpInput');
+    var origEmp = empCs._select.bind(empCs);
+    empCs._select = function (v, l) { origEmp(v, l); empInp.value = v; form.submit(); };
+    @endunless
+
+    var monCs   = new CustomSelect('spMonthWrapper');
+    var monInp  = document.getElementById('spMonthInput');
+    var origMon = monCs._select.bind(monCs);
+    monCs._select = function (v, l) { origMon(v, l); monInp.value = v; form.submit(); };
+    if (monInp.value) { monCs.orig(monInp.value, {{ json_encode($selectedMonthLabel) }}); }
 })();
 </script>
 @endpush

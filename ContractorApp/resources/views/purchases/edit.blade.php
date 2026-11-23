@@ -254,7 +254,7 @@
         spinner.classList.remove('d-none');
         this.disabled = true;
 
-        fetch('{{ route('products.quick-store') }}', {
+        fetch('{{ route('products.quick-store', [], false) }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

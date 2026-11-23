@@ -55,6 +55,30 @@ class Work extends Model
         return $this->hasMany(WorkPayment::class);
     }
 
+    /** @return HasMany<WorkDailyWorker, $this> */
+    public function dailyWorkers(): HasMany
+    {
+        return $this->hasMany(WorkDailyWorker::class);
+    }
+
+    /** @return HasMany<WorkWorker, $this> */
+    public function workers(): HasMany
+    {
+        return $this->hasMany(WorkWorker::class);
+    }
+
+    /** @return HasMany<ProjectPayment, $this> */
+    public function collections(): HasMany
+    {
+        return $this->hasMany(ProjectPayment::class);
+    }
+
+    /** @return HasMany<Expense, $this> */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
+
     /** @return BelongsToMany<Employee, $this> */
     public function employees(): BelongsToMany
     {

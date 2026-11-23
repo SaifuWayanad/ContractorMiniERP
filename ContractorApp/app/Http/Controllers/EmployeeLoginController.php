@@ -30,8 +30,8 @@ class EmployeeLoginController extends Controller
         abort_if($employee->hasLogin(), 403, 'This employee already has a login.');
 
         $validated = $request->validate([
-            'email'    => ['required', 'email', 'max:200', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'username' => ['required', 'string', 'max:50', 'unique:users,username'],
+            'password' => ['required', 'string', 'confirmed'],
         ]);
 
         $staffRole = Role::where('slug', Role::CONTRACTOR_STAFF)->firstOrFail();
@@ -39,7 +39,7 @@ class EmployeeLoginController extends Controller
         $user = DB::transaction(function () use ($validated, $employee, $staffRole): User {
             $user = new User([
                 'name'     => $employee->name,
-                'email'    => $validated['email'],
+                'username' => $validated['username'],
                 'password' => Hash::make($validated['password']),
             ]);
             $user->contractor_id = $employee->contractor_id;

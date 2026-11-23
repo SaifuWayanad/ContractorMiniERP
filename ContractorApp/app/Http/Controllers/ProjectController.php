@@ -6,6 +6,7 @@ use App\Enums\ProjectStatus;
 use App\Http\Requests\ProjectRequest;
 use App\Models\ActivityLog;
 use App\Models\Client;
+use App\Models\Employee;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\Purchase;
@@ -40,7 +41,11 @@ class ProjectController extends Controller
             ->when($filters['client_id'], fn (Builder $query, int $clientId) => $query->where('client_id', $clientId))
             ->when($filters['status'], fn (Builder $query, string $status) => $query->where('status', $status))
             ->when($filters['from'], fn (Builder $query, string $from) => $query->whereDate('start_date', '>=', $from))
-            ->when($filters['to'], fn (Builder $query, string $to) => $query->whereDate('start_date', '<=', $to));
+            ->when($filters['to'], fn (Builder $query, string $to) => $query->whereDate('start_date', '<=', $to))
+            ->when($request->user()->isEmployeePortal(), function (Builder $query) use ($request): void {
+                $employee = $request->user()->linkedEmployee();
+                $query->whereHas('employees', fn (Builder $q) => $q->where('employees.id', $employee->id));
+            });
 
         match ($filters['sort']) {
             'oldest' => $query->oldest(),
@@ -91,7 +96,16 @@ class ProjectController extends Controller
     {
         $this->authorize('view', $project);
 
-        $project->load(['client', 'locations' => fn ($query) => $query->orderBy('id')]);
+        $user = auth()->user();
+        if ($user->isEmployeePortal()) {
+            $employee = $user->linkedEmployee();
+            abort_unless(
+                $employee && $project->employees()->where('employees.id', $employee->id)->exists(),
+                403
+            );
+        }
+
+        $project->load(['client', 'locations' => fn ($query) => $query->orderBy('id'), 'employees:id,name,designation']);
 
         $purchases = Purchase::where(function (Builder $q) use ($project): void {
             $q->where('project_id', $project->id)
@@ -119,8 +133,11 @@ class ProjectController extends Controller
         $financials['profit']       = $financials['payments_total'] - $financials['total_cost'];
 
         return view('projects.show', [
-            'project'        => $project,
-            'works'          => $works,
+            'project'            => $project,
+            'employees'          => $project->employees,
+            'allEmployees'       => Employee::where('status', 'active')->orderBy('name')->get(['id', 'name', 'designation']),
+            'selectedEmployeeIds' => $project->employees->pluck('id')->toArray(),
+            'works'              => $works,
             'meetings'       => $project->meetings()->with('createdBy:id,name')->orderByDesc('meeting_at')->get(),
             'purchases'      => $purchases,
             'expenses'       => $expenses,

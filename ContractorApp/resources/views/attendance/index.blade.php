@@ -5,19 +5,27 @@
 @section('content')
 <x-page-header title="Attendance" subtitle="View and manage daily attendance records.">
     <x-slot:actions>
+        <a href="{{ route('attendance.calendar-view') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-calendar3 me-1"></i>Calendar
+        </a>
         @can('create', App\Models\Attendance::class)
             <a href="{{ route('attendance.mark', ['date' => today()->format('Y-m-d')]) }}" class="btn btn-primary btn-sm"><i class="bi bi-calendar-check me-1"></i>Mark Attendance</a>
         @endcan
     </x-slot:actions>
 </x-page-header>
 
-<form method="get" action="{{ route('attendance.index') }}" class="mb-4" data-auto-filter>
+<form method="get" action="{{ route('attendance.index') }}" class="mb-4" id="attFilterForm">
+    @if ($isEmployeePortal)
+        <input type="hidden" name="employee_id" value="{{ $linkedEmployeeId }}">
+    @endif
     <div class="row g-2 align-items-end">
         <div class="col-sm-6 col-md-3">
             <label class="form-label text-muted small mb-1">Date</label>
-            <input type="date" class="form-control form-control-sm" name="date" value="{{ $filters['date'] }}" style="min-height:calc(1.5em + 0.5rem + 2px)" />
+            <input type="date" class="form-control form-control-sm" name="date" id="attDateInput" value="{{ $filters['date'] }}" />
         </div>
+        @unless ($isEmployeePortal)
         <div class="col-sm-6 col-md-3">
+            <label class="form-label text-muted small mb-1">Employee</label>
             <div class="cs-wrapper cs-sm" id="attEmpWrapper">
                 <div class="cs-trigger">
                     <span class="cs-value {{ $filters['employee_id'] ? '' : 'cs-placeholder' }}">{{ $filters['employee_id'] ? ($employees[$filters['employee_id']] ?? 'All Employees') : 'All Employees' }}</span>
@@ -35,10 +43,17 @@
                 <input type="hidden" name="employee_id" id="attEmpInput" value="{{ $filters['employee_id'] ?? '' }}">
             </div>
         </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-secondary btn-sm">View</button>
+        @endunless
+        <div class="col-sm-6 col-md-3">
+            <label class="form-label text-muted small mb-1">Status</label>
+            <select class="form-select form-select-sm" name="status" id="attStatusSelect">
+                <option value="">All Status</option>
+                <option value="present"  {{ $filters['status'] === 'present'  ? 'selected' : '' }}>Present</option>
+                <option value="half_day" {{ $filters['status'] === 'half_day' ? 'selected' : '' }}>Half Day</option>
+                <option value="leave"    {{ $filters['status'] === 'leave'    ? 'selected' : '' }}>Leave</option>
+            </select>
         </div>
-        @if($filters['employee_id'])
+        @if(! $isEmployeePortal && ($filters['employee_id'] || $filters['status']))
             <div class="col-auto">
                 <a href="{{ route('attendance.index', ['date' => $filters['date']]) }}" class="btn btn-outline-secondary btn-sm">Clear</a>
             </div>
@@ -70,12 +85,29 @@
                     <th>Employee</th>
                     <th>Morning</th>
                     <th>Evening</th>
-                    <th class="d-none d-md-table-cell">Notes</th>
+                    <th>Status</th>
                     <th class="text-end"><span class="visually-hidden">Actions</span></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($attendances as $att)
+                @php
+                    $m = $att->morning_status;
+                    $e = $att->evening_status;
+                    $leaveLike = [\App\Enums\AttendanceStatus::Leave, \App\Enums\AttendanceStatus::Absent];
+                    if ($m === \App\Enums\AttendanceStatus::HalfDay || $e === \App\Enums\AttendanceStatus::HalfDay) {
+                        $derived = \App\Enums\AttendanceStatus::HalfDay;
+                    } elseif (
+                        ($m === \App\Enums\AttendanceStatus::Present && $e !== null && in_array($e, $leaveLike)) ||
+                        (in_array($m, $leaveLike) && $e === \App\Enums\AttendanceStatus::Present)
+                    ) {
+                        $derived = \App\Enums\AttendanceStatus::HalfDay;
+                    } elseif ($m === \App\Enums\AttendanceStatus::Present) {
+                        $derived = \App\Enums\AttendanceStatus::Present;
+                    } else {
+                        $derived = \App\Enums\AttendanceStatus::Leave;
+                    }
+                @endphp
                 <tr>
                     <td>
                         <a href="{{ route('employees.show', $att->employee_id) }}" class="row-title">{{ $att->employee->name }}</a>
@@ -88,7 +120,7 @@
                             <span class="text-muted">—</span>
                         @endif
                     </td>
-                    <td class="d-none d-md-table-cell text-muted small">{{ $att->notes ?? '—' }}</td>
+                    <td><span class="badge {{ $derived->badgeClass() }}">{{ $derived->label() }}</span></td>
                     <td class="text-end">
                         @can('delete', $att)
                             <x-delete-button :action="route('attendance.destroy', $att)" class="btn btn-icon btn-sm text-danger" title="Delete record?" confirm="Delete this attendance record?" icon="bi-trash" />
@@ -100,14 +132,19 @@
         </table>
     @endif
 </x-card>
+
 @push('scripts')
 <script>
 (function () {
-    var form = document.querySelector('form[data-auto-filter]');
-    var cs = new CustomSelect('attEmpWrapper');
-    var input = document.getElementById('attEmpInput');
-    var orig = cs._select.bind(cs);
-    cs._select = function(v, l) { orig(v, l); input.value = v; };
+    var form = document.getElementById('attFilterForm');
+    @unless ($isEmployeePortal)
+    var empCs    = new CustomSelect('attEmpWrapper');
+    var empInput = document.getElementById('attEmpInput');
+    var origSel  = empCs._select.bind(empCs);
+    empCs._select = function (v, l) { origSel(v, l); empInput.value = v; form.submit(); };
+    @endunless
+    document.getElementById('attDateInput').addEventListener('change', function () { form.submit(); });
+    document.getElementById('attStatusSelect').addEventListener('change', function () { form.submit(); });
 })();
 </script>
 @endpush

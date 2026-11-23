@@ -9,16 +9,26 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\EmployeePortalSettingsController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\EmployeeDesignationController;
 use App\Http\Controllers\EmployeeLoginController;
+use App\Http\Controllers\EmployeeSalaryTypeController;
+use App\Http\Controllers\EmployeeStatusOptionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\ProjectEmployeeController;
+use App\Http\Controllers\WorkDailyWorkerController;
+use App\Http\Controllers\WorkCollectionController;
+use App\Http\Controllers\WorkExpenseController;
+use App\Http\Controllers\WorkWorkerController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProjectPaymentController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SalaryPaymentController;
+use App\Http\Controllers\SalaryPaymentMethodController;
 use App\Http\Controllers\VisitController;
 use App\Http\Controllers\WorkTypeController;
 use App\Http\Controllers\ProfileController;
@@ -64,6 +74,9 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         Route::get('profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
 
+        Route::get('employee-portal-settings', [EmployeePortalSettingsController::class, 'edit'])->name('employee-portal-settings.edit');
+        Route::put('employee-portal-settings', [EmployeePortalSettingsController::class, 'update'])->name('employee-portal-settings.update');
+
         Route::resource('clients', ClientController::class);
         Route::post('clients/quick', [ClientController::class, 'quickStore'])->name('clients.quick');
         Route::resource('projects', ProjectController::class);
@@ -97,16 +110,33 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         Route::get('reports/collections', [ReportController::class, 'collections'])->name('reports.collections');
         Route::get('reports/expenses', [ReportController::class, 'expenses'])->name('reports.expenses');
         Route::get('reports/employees', [ReportController::class, 'employees'])->name('reports.employees');
+        Route::get('reports/employee-performance', [ReportController::class, 'employeePerformance'])->name('reports.employee-performance');
 
         Route::resource('employees', EmployeeController::class);
+        Route::patch('employees/{employee}/status', [EmployeeController::class, 'updateStatus'])->name('employees.update-status');
         Route::get('employees/{employee}/login/create', [EmployeeLoginController::class, 'create'])->name('employees.login.create');
         Route::post('employees/{employee}/login', [EmployeeLoginController::class, 'store'])->name('employees.login.store');
         Route::delete('employees/{employee}/login', [EmployeeLoginController::class, 'destroy'])->name('employees.login.destroy');
         Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/calendar-view', [AttendanceController::class, 'calendarView'])->name('attendance.calendar-view');
+        Route::get('attendance/calendar', [AttendanceController::class, 'calendarData'])->name('attendance.calendar');
         Route::get('attendance/mark', [AttendanceController::class, 'mark'])->name('attendance.mark');
         Route::post('attendance/mark', [AttendanceController::class, 'saveMark'])->name('attendance.save-mark');
         Route::delete('attendance/{attendance}', [AttendanceController::class, 'destroy'])->name('attendance.destroy');
+        Route::get('salary-payments/bulk', [SalaryPaymentController::class, 'bulk'])->name('salary-payments.bulk');
+        Route::post('salary-payments/bulk', [SalaryPaymentController::class, 'saveBulk'])->name('salary-payments.bulk.save');
         Route::resource('salary-payments', SalaryPaymentController::class)->except('show');
+        Route::post('salary-payment-methods/quick', [SalaryPaymentMethodController::class, 'quickStore'])->name('salary-payment-methods.quick');
+
+        Route::post('projects/{project}/employees/sync', [ProjectEmployeeController::class, 'sync'])->name('projects.employees.sync');
+        Route::post('works/{work}/daily-workers', [WorkDailyWorkerController::class, 'store'])->name('works.daily-workers.store');
+        Route::delete('works/{work}/daily-workers/{worker}', [WorkDailyWorkerController::class, 'destroy'])->name('works.daily-workers.destroy');
+        Route::post('works/{work}/collections', [WorkCollectionController::class, 'store'])->name('works.collections.store');
+        Route::delete('works/{work}/collections/{payment}', [WorkCollectionController::class, 'destroy'])->name('works.collections.destroy');
+        Route::post('works/{work}/expenses', [WorkExpenseController::class, 'store'])->name('works.expenses.store');
+        Route::delete('works/{work}/expenses/{expense}', [WorkExpenseController::class, 'destroy'])->name('works.expenses.destroy');
+        Route::post('works/{work}/workers', [WorkWorkerController::class, 'store'])->name('works.workers.store');
+        Route::delete('works/{work}/workers/{worker}', [WorkWorkerController::class, 'destroy'])->name('works.workers.destroy');
 
         Route::resource('visits', VisitController::class)->except('show');
 
@@ -115,6 +145,24 @@ Route::middleware(['auth', 'active'])->group(function (): void {
         Route::post('work-types/quick', [WorkTypeController::class, 'quickStore'])->name('work-types.quick');
         Route::put('work-types/{workType}', [WorkTypeController::class, 'update'])->name('work-types.update');
         Route::delete('work-types/{workType}', [WorkTypeController::class, 'destroy'])->name('work-types.destroy');
+
+        Route::get('employee-designations', [EmployeeDesignationController::class, 'index'])->name('employee-designations.index');
+        Route::post('employee-designations', [EmployeeDesignationController::class, 'store'])->name('employee-designations.store');
+        Route::post('employee-designations/quick', [EmployeeDesignationController::class, 'quickStore'])->name('employee-designations.quick');
+        Route::put('employee-designations/{employeeDesignation}', [EmployeeDesignationController::class, 'update'])->name('employee-designations.update');
+        Route::delete('employee-designations/{employeeDesignation}', [EmployeeDesignationController::class, 'destroy'])->name('employee-designations.destroy');
+
+        Route::get('employee-salary-types', [EmployeeSalaryTypeController::class, 'index'])->name('employee-salary-types.index');
+        Route::post('employee-salary-types', [EmployeeSalaryTypeController::class, 'store'])->name('employee-salary-types.store');
+        Route::post('employee-salary-types/quick', [EmployeeSalaryTypeController::class, 'quickStore'])->name('employee-salary-types.quick');
+        Route::put('employee-salary-types/{employeeSalaryType}', [EmployeeSalaryTypeController::class, 'update'])->name('employee-salary-types.update');
+        Route::delete('employee-salary-types/{employeeSalaryType}', [EmployeeSalaryTypeController::class, 'destroy'])->name('employee-salary-types.destroy');
+
+        Route::get('employee-statuses', [EmployeeStatusOptionController::class, 'index'])->name('employee-statuses.index');
+        Route::post('employee-statuses', [EmployeeStatusOptionController::class, 'store'])->name('employee-statuses.store');
+        Route::post('employee-statuses/quick', [EmployeeStatusOptionController::class, 'quickStore'])->name('employee-statuses.quick');
+        Route::put('employee-statuses/{employeeStatusOption}', [EmployeeStatusOptionController::class, 'update'])->name('employee-statuses.update');
+        Route::delete('employee-statuses/{employeeStatusOption}', [EmployeeStatusOptionController::class, 'destroy'])->name('employee-statuses.destroy');
     });
 
     /*

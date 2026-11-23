@@ -21,6 +21,12 @@ abstract class ContractorOwnedPolicy
 
     public function viewAny(User $user): bool
     {
+        // Employee portal users are granted view access by their contractor's section settings.
+        // The sidebar already enforces which sections are visible; we just let them through here.
+        if ($user->isEmployeePortal()) {
+            return true;
+        }
+
         return $user->hasPermission($this->permission('view'));
     }
 
@@ -31,6 +37,10 @@ abstract class ContractorOwnedPolicy
 
     public function create(User $user): bool
     {
+        if ($user->isEmployeePortal()) {
+            return false;
+        }
+
         return ($user->isAdmin() || $user->isContractorUser()) && $user->hasPermission($this->permission('create'));
     }
 

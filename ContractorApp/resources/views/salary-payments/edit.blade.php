@@ -9,6 +9,6 @@
     @csrf
     @method('PUT')
     @include('salary-payments._form')
-    <x-form.actions :back="route('salary-payments.index')" submit="Save Changes" />
+    <x-form.actions :cancel="route('salary-payments.index')" submit="Save Changes" />
 </form>
 @endsection

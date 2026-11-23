@@ -92,6 +92,13 @@
             Meetings @if($meetings->isNotEmpty()) <span class="badge bg-secondary ms-1">{{ $meetings->count() }}</span> @endif
         </a>
     </li>
+    @can('update', $project)
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" data-bs-toggle="tab" href="#tab-employees" role="tab">
+            Employees @if($employees->isNotEmpty()) <span class="badge bg-secondary ms-1">{{ $employees->count() }}</span> @endif
+        </a>
+    </li>
+    @endcan
 </ul>
 
 <div class="tab-content card border-top-0" style="border-radius:0 0 8px 8px;">
@@ -343,13 +350,22 @@
                                 </div>
                             </td>
                             <td class="text-end d-none d-md-table-cell text-muted">
-                                @if($isBatch) — @else
+                                @if($isBatch && $itemCount === 1)
+                                    @php $si = $myItems->first(); @endphp
+                                    {{ $si->quantity !== null ? rtrim(rtrim(number_format((float)$si->quantity, 4), '0'), '.') . ' ' . ($si->product?->unit ?? '') : '—' }}
+                                @elseif(!$isBatch)
                                     {{ $purchase->quantity !== null ? rtrim(rtrim(number_format((float)$purchase->quantity, 4), '0'), '.') . ' ' . ($purchase->product?->unit ?? '') : '—' }}
+                                @else
+                                    —
                                 @endif
                             </td>
                             <td class="text-end d-none d-md-table-cell text-muted">
-                                @if($isBatch) — @else
+                                @if($isBatch && $itemCount === 1)
+                                    {{ $si->unit_amount !== null ? '₹'.number_format((float)$si->unit_amount, 2) : '—' }}
+                                @elseif(!$isBatch)
                                     {{ $purchase->unit_amount !== null ? '₹'.number_format((float)$purchase->unit_amount, 2) : '—' }}
+                                @else
+                                    —
                                 @endif
                             </td>
                             <td class="text-end fw-semibold">₹{{ number_format($displayTotal, 2) }}</td>
@@ -551,6 +567,38 @@
         @endif
     </div>
 
+    {{-- ── EMPLOYEES TAB ── --}}
+    @can('update', $project)
+    <div class="tab-pane fade" id="tab-employees" role="tabpanel">
+        <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Assigned Employees <span class="badge bg-secondary ms-1">{{ $employees->count() }}</span></h6>
+        </div>
+        <div class="p-3">
+            @if($allEmployees->isEmpty())
+                <p class="text-muted small mb-0">No active employees found. <a href="{{ route('employees.create') }}">Add employees first</a>.</p>
+            @else
+                <form method="post" action="{{ route('projects.employees.sync', $project) }}">
+                    @csrf
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @foreach($allEmployees as $emp)
+                        @php $checked = in_array($emp->id, $selectedEmployeeIds); @endphp
+                        <div class="form-check form-check-inline border rounded px-3 py-2 {{ $checked ? 'border-primary bg-primary bg-opacity-10' : '' }}" style="cursor:pointer">
+                            <input class="form-check-input" type="checkbox" name="employee_ids[]"
+                                   value="{{ $emp->id }}" id="projEmpCheck_{{ $emp->id }}"
+                                   {{ $checked ? 'checked' : '' }}>
+                            <label class="form-check-label d-flex flex-column" for="projEmpCheck_{{ $emp->id }}" style="cursor:pointer">
+                                <span class="fw-semibold" style="font-size:.88rem">{{ $emp->name }}</span>
+                                @if($emp->designation) <span class="text-muted" style="font-size:.78rem">{{ $emp->designation }}</span> @endif
+                            </label>
+                        </div>
+                        @endforeach
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Save Assignments</button>
+                </form>
+            @endif
+        </div>
+    </div>
+    @endcan
 
 </div>{{-- end tab-content --}}
 @endsection
